@@ -156,7 +156,7 @@ select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000
 do $$
 -- NB: lav_ko è la variabile per gli avvii "usa e getta" dentro i blocchi exception: il rollback
 -- della sottotransazione cancella la riga ma NON la variabile, quindi lav non va riassegnata lì.
-declare op uuid; sch uuid; gz uuid; gz2 uuid; lav uuid; lav2 uuid; lav_ko uuid; r jsonb; g rotoli_grezzi; n int; f_u uuid;
+declare op uuid; sch uuid; gz uuid; gz2 uuid; lav uuid; lav2 uuid; lav_ko uuid; r jsonb; g rotoli_grezzi; n int; f_u uuid; f_u2 uuid;
 begin
   assert ruolo_utente() = 'ufficio', 'ruolo ufficio';
   select id into op from operatori where nome = 'Test Operatore';
@@ -235,6 +235,20 @@ begin
     raise exception 'ATTESO ERRORE (ripartenza incrociata)';
   exception when others then assert sqlerrm like '%altra lavorazione%', 'msg incrociata: ' || sqlerrm; end;
   insert into eventi (lavorazione_id, tipo, fermo_id, metri_scarto) values (lav2, 'ripartenza', f_u, 100);
+  assert (select durata_min from eventi where id = f_u) = 3, 'durata_min 3 del fermo ufficio';
+
+  -- (003) correzione d'ufficio: la ripartenza viene spostata su un altro fermo → il fermo di prima
+  -- torna aperto con durata azzerata, il nuovo fermo prende la durata
+  insert into eventi (lavorazione_id, tipo, causa_fermo, avvenuto_il) values (lav2, 'fermo', 'altro', now() - interval '2 minutes') returning id into f_u2;
+  update eventi set fermo_id = f_u2 where tipo = 'ripartenza' and fermo_id = f_u;
+  assert (select durata_min from eventi where id = f_u) is null, 'il fermo abbandonato deve tornare senza durata';
+  assert (select durata_min from eventi where id = f_u2) = 2, 'il nuovo fermo prende la durata';
+  -- il fermo abbandonato è di nuovo aperto: l'annullo lo respinge finché non ha una ripartenza
+  begin
+    perform annulla_lavorazione(lav2, op, 'prova', 0);
+    raise exception 'ATTESO ERRORE (fermo tornato aperto)';
+  exception when others then assert sqlerrm like '%fermo aperto%', 'msg fermo riaperto: ' || sqlerrm; end;
+  insert into eventi (lavorazione_id, tipo, fermo_id) values (lav2, 'ripartenza', f_u);
 
   -- pulizia: la lavorazione aperta si annulla (il rollback finale farebbe comunque tutto)
   perform annulla_lavorazione(lav2, op, 'pulizia del test', 0);

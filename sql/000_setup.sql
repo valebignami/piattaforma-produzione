@@ -298,6 +298,10 @@ begin
     raise exception 'La ripartenza non può precedere il fermo';
   end if;
   update eventi set avvenuto_il = avvenuto_il where id = new.fermo_id;   -- tocca la riga → trigger 1
+  -- (003) ripartenza spostata su un altro fermo: il fermo di prima torna aperto, la sua durata va azzerata
+  if tg_op = 'UPDATE' and old.fermo_id is not null and old.fermo_id is distinct from new.fermo_id then
+    update eventi set avvenuto_il = avvenuto_il where id = old.fermo_id;
+  end if;
   return null;
 end $$;
 create trigger trg_eventi_ripartenza after insert or update on eventi
@@ -376,7 +380,9 @@ do $$ begin
 end $$;
 
 -- ============================================================
--- Sezione d: helper interni (prefisso _) e RPC. Tutte security definer + search_path.
+-- Sezione d: helper interni (prefisso _) e RPC. Tutte con search_path; security definer le
+-- quattro RPC e _inserisci_figli (scrivono); _codici_figli e _controlla_figli_e_bilancio sono
+-- puri (nessun accesso alle tabelle) e girano nel contesto della RPC che li chiama.
 -- Le RPC sono l'UNICO varco di scrittura su lavorazioni e rotoli_lavorati.
 -- ============================================================
 do $$ begin
