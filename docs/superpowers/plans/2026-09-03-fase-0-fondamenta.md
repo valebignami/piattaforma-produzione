@@ -6,7 +6,7 @@
 
 **Architecture:** Front-end statico (HTML/CSS/JS, moduli ES nativi, nessun bundler) su GitHub Pages da repo privato; Supabase (Postgres + PostgREST + Auth + Realtime) come unico backend; **tutte le regole di dominio in Postgres** (vincoli, trigger, viste, quattro RPC `security definer`); in `js/comune.js` solo funzioni pure testate in Node, in `js/db.js` il client e `salva()`.
 
-**Tech Stack:** Postgres 17 su Supabase (eu-central-1), `supabase-js` 2.x UMD da jsDelivr con SRI, Node ≥ 20 per i test (`node --test`), Python 3 per `http.server`, git, GitHub Pages (piano Pro, repo privato).
+**Tech Stack:** Postgres 17 su Supabase (eu-central-1), `supabase-js` 2.x UMD da jsDelivr con SRI, Node ≥ 20 per i test (`node --test`, con un `package.json` di sola `"type": "module"`), Python 3 per `http.server`, git, GitHub Pages (piano Pro, repo privato).
 
 **Spec:** `docs/superpowers/specs/2026-09-03-ciclo-bobina-design.md` (APPROVATO 2026-09-03). Indice fasi: `PIANO_funzionalita.md`.
 
@@ -20,9 +20,10 @@
 - Colonne generate: `metri_stimati` con la formula **ripetuta per esteso** (Postgres non ammette generata su generata) e `::integer` (spec §2.2).
 - **Due trigger distinti** su `eventi` per i fermi (spec §2.5).
 - Costanti: `SOGLIA_CONTROLLO_MIN = 20`, `SOGLIA_BOLLA_PCT = 3`, `TOLLERANZA_PCT = 10`, `GLOSS_PERP_MAX = 40`, `GLOSS_PAR_MAX = 60`, tolleranza bilancio `× 1,02` (spec §2.6, §2.7, §5.2).
-- Nessun cache-buster; nessun `package.json`; nessun bundler (spec §5.1).
+- Nessun cache-buster; nessun bundler; nessuna dipendenza npm (spec §5.1). **Scostamento dichiarato:** esiste un `package.json` di **una sola riga** `{ "type": "module" }`, senza dipendenze né script, perché Node ≥ 20 senza di esso tratta `js/comune.js` come CommonJS e i test non partono (dal 22.7 partono con un warning). Non è una toolchain: niente `npm install`, mai.
 - `git add` sempre di file espliciti, mai `.`/`-A`; `git push` solo al Task 15; commit in italiano.
-- Nessuna migrazione applicata senza backup precedente via connettore (spec §5.4) — in Fase 0 il DB è vuoto, il backup è la lista tabelle vuota: va comunque eseguito e annotato.
+- Backup prima di ogni migrazione (spec §5.4): in Fase 0 **un solo backup all'inizio** (Task 7, Step 3), perché il database nasce vuoto e nessuna delle migrazioni 000a-002 tocca dati preesistenti; dalla Fase 1 il backup torna a essere per migrazione.
+- **Ogni sezione SQL ha in testa la propria guardia** "già applicata → errore": nessuna sezione di `000_setup.sql` si riesegue mai; le correzioni sono nuove migrazioni `003_fix_<voce>.sql`.
 - Progetto Supabase: **`Overland Produzione`** (eu-central-1). Prima di ogni scrittura verificare con `get_project`/`list_projects` che il ref sia quello creato al Task 7; mai scrivere su `tbaagbngpxibllftsgoh` (HR) né su `cqdmfhdcdvaezmexzxrq` (Scadenziario).
 
 ---
@@ -32,6 +33,7 @@
 ```
 Piattaforma Produzione/                (root del repo, già inizializzato con docs/)
   .gitignore                           .claude/, RAPPORTO_*.md, Backup app/, *.tmp, ~$*
+  package.json                         { "type": "module" } — una riga, nessuna dipendenza
   .claude/launch.json                  python -m http.server 8000  (non committato)
   index.html                           login + "Connesso come …"
   css/base.css                         reset, tipografia, bottoni
@@ -45,7 +47,8 @@ Piattaforma Produzione/                (root del repo, già inizializzato con do
   tests/test-comune.mjs                node --test
   tests/test-dom-ids.mjs               id cercati dal JS esistono nell'HTML
   CLAUDE.md                            regole operative del repo
-  STATO_2026-09-XX.md                  stato di fine fase
+  STATO_<data>.md                      stato di fine fase (es. STATO_2026-09-04.md)
+  RAPPORTO_fase-0.md                   rapporto per il committente (gitignorato)
 ```
 
 Responsabilità: `comune.js` non importa nulla e non tocca il DOM né la rete (è testabile in Node); `db.js` è l'unico file che conosce Supabase; ogni pagina ha il suo `js/<pagina>.js`.
@@ -56,12 +59,12 @@ Responsabilità: `comune.js` non importa nulla e non tocca il DOM né la rete (�
 
 **Files:**
 - Modify: `.gitignore`
-- Create: `.claude/launch.json`, `CLAUDE.md`, `css/.gitkeep`, `js/.gitkeep`, `sql/.gitkeep`, `tests/.gitkeep`
+- Create: `.claude/launch.json`, `CLAUDE.md`, `package.json`
 
 - [ ] **Step 1: Verifica lo stato del repo**
 
 Run: `git status --short && git log --oneline | head -3`
-Expected: working tree pulito; ultimo commit `docs: spec ciclo bobina APPROVATO …`.
+Expected: working tree pulito; l'ultimo commit contiene il piano della Fase 0 (`docs: PIANO_funzionalita …` o successivo).
 
 - [ ] **Step 2: Completa `.gitignore`**
 
@@ -91,9 +94,15 @@ Backup app/
 }
 ```
 
-- [ ] **Step 4: Crea `CLAUDE.md` iniziale**
+- [ ] **Step 4: Crea `package.json`** (una riga: serve solo a dire a Node che i `.js` sono moduli ES)
 
-```markdown
+```json
+{ "type": "module" }
+```
+
+- [ ] **Step 5: Crea `CLAUDE.md` iniziale** (il blocco è delimitato da quattro backtick perché contiene un blocco `bash`)
+
+````markdown
 # CLAUDE.md — Piattaforma Produzione Overland
 
 ## Cos'è
@@ -106,7 +115,8 @@ Piano fasi: `PIANO_funzionalita.md`. Codice, commenti e UI in italiano.
 node --test tests/                 # funzioni pure + id DOM
 python -m http.server 8000         # servire in locale → http://localhost:8000/index.html
 ```
-Non esistono `package.json`, bundler, linter. `supabase-js` arriva da CDN (UMD, SRI, pinnato).
+Nessun bundler, linter o dipendenza npm: `package.json` contiene solo `"type": "module"`.
+`supabase-js` arriva da CDN (UMD, SRI, pinnato).
 
 ## Regole operative
 - `git push` su `main` = produzione (GitHub Pages, repo privato). Solo come passo esplicito.
@@ -114,21 +124,25 @@ Non esistono `package.json`, bundler, linter. `supabase-js` arriva da CDN (UMD, 
   `js/comune.js` contiene solo funzioni pure; le tre duplicate (fuoriRange, codiciFigli,
   bilancioChiusura) sono dichiarate nello spec e coperte dal test di coerenza.
 - Progetto Supabase: `Overland Produzione` (ref: <da compilare al Task 7>). Nessuno staging.
+  Mai rieseguire una sezione di `000_setup.sql`: le correzioni sono migrazioni nuove.
 - `modificato_da/il` e `durata_min` le scrive il DB: mai dal client.
+- `rotoli_grezzi` non è leggibile dal reparto: il tablet usa la vista `rotoli_grezzi_reparto`.
+- Le `note` di una lavorazione si scrivono solo su lavorazioni `chiuse`; per le annullate il
+  posto è `motivo_annullo`.
 - Niente cache-buster: Pages serve con max-age=600.
 
 ## Struttura
 Vedi il piano della Fase 0, sezione "Struttura dei file".
-```
+````
 
-- [ ] **Step 5: Crea le cartelle vuote e committa**
+- [ ] **Step 6: Committa**
 
 Run:
 ```bash
-mkdir -p css js sql tests && touch css/.gitkeep js/.gitkeep sql/.gitkeep tests/.gitkeep
-git add .gitignore CLAUDE.md css/.gitkeep js/.gitkeep sql/.gitkeep tests/.gitkeep
-git commit -m "chore: struttura del repo, CLAUDE.md, gitignore"
+git add .gitignore CLAUDE.md package.json
+git commit -m "chore: struttura del repo, CLAUDE.md, package.json type module, gitignore"
 ```
+(Le cartelle `css/`, `js/`, `sql/`, `tests/` nascono con i primi file veri nei task seguenti.)
 
 ---
 
@@ -149,8 +163,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as c from "../js/comune.js";
 
-test("kgAlMetro: formula del manuale (larg × sp × 2,7 / 1000)", () => {
-  assert.equal(c.kgAlMetro(1500, 2), 8.1);
+test("kgAlMetro: formula del manuale (larg × sp × 2,7 / 1000), esatta in virgola mobile", () => {
+  assert.equal(c.kgAlMetro(1500, 2), 8.1);          // (1500·2·27)/10000 = 8.1 esatto; (1500·2·2.7)/1000 darebbe 8.100000000000001
   assert.equal(Number(c.kgAlMetro(1080, 0.45).toFixed(2)), 1.31);
 });
 
@@ -196,10 +210,12 @@ export const TOLLERANZA_PCT = 10;         // ±10 % su velocità, ampere, micron
 export const GLOSS_PERP_MAX = 40;         // manuale: perpendicolare "minore di 40" → fuori se ≥ 40
 export const GLOSS_PAR_MAX = 60;          // manuale: parallelo "minore di 60" → fuori se ≥ 60
 export const TOLLERANZA_BILANCIO = 1.02;  // Σ figli + residuo ≤ disponibile × 1,02
-export const PESO_SPECIFICO_AL = 2.7;     // kg/dm³
+export const PESO_SPECIFICO_AL = 2.7;     // kg/dm³ — documentativa: la formula sotto usa 27/10000 per restare esatta
 
+// kg al metro = larghezza (mm) × spessore (mm) × 2,7 / 1000. Scritta come ×27/10000 perché
+// in virgola mobile 1500·2·2.7/1000 dà 8.100000000000001, mentre 1500·2·27/10000 dà 8.1.
 export function kgAlMetro(larghezzaMm, spessoreMm) {
-  return (larghezzaMm * spessoreMm * PESO_SPECIFICO_AL) / 1000;
+  return (larghezzaMm * spessoreMm * 27) / 10000;
 }
 
 export function metriDaKg(kg, larghezzaMm, spessoreMm) {
@@ -214,7 +230,7 @@ export function kgDaMetri(metri, larghezzaMm, spessoreMm) {
 - [ ] **Step 4: Esegui il test e verifica che passi**
 
 Run: `node --test tests/test-comune.mjs`
-Expected: `# pass 4`, `# fail 0`. Se `kgAlMetro(1500, 2)` dà `8.100000000000001`, cambia l'ordine delle operazioni in `(larghezzaMm * spessoreMm * PESO_SPECIFICO_AL) / 1000` come sopra (1500·2·2.7 = 8100 esatto).
+Expected: `# pass 4`, `# fail 0`, nessun warning `MODULE_TYPELESS_PACKAGE_JSON` (se compare, manca `package.json` del Task 0).
 
 - [ ] **Step 5: Commit**
 
@@ -250,8 +266,9 @@ test("codiciFigli: secondo giro dopo un caso C → continua da /B", () => {
   assert.deepEqual(c.codiciFigli("A5000", 1, 0, 1), ["A5000/B"]);
   assert.deepEqual(c.codiciFigli("A5000", 2, 0, 1), ["A5000/B", "A5000/C"]);
 });
-test("codiciFigli: zero figli è un errore", () => {
+test("codiciFigli: zero figli è un errore; oltre 26 lettere è un errore", () => {
   assert.throws(() => c.codiciFigli("A5000", 0, 0, 0), /almeno un rotolo/);
+  assert.throws(() => c.codiciFigli("A5000", 2, 0, 25), /Troppi rotoli/);
 });
 ```
 
@@ -263,6 +280,7 @@ test("codiciFigli: zero figli è un errore", () => {
 // Regola dei codici (spec §2.7). Duplicata in chiudi_lavorazione: la verità è la RPC.
 export function codiciFigli(nProg, nFigli, kgResidui, nFigliEsistenti = 0) {
   if (!Number.isInteger(nFigli) || nFigli < 1) throw new Error("Serve almeno un rotolo finito");
+  if (nFigliEsistenti + nFigli > 26) throw new Error("Troppi rotoli finiti da questo grezzo");
   if (nFigli === 1 && kgResidui === 0 && nFigliEsistenti === 0) return [nProg];
   return Array.from({ length: nFigli }, (_, i) =>
     `${nProg}/${String.fromCharCode(65 + nFigliEsistenti + i)}`);
@@ -302,6 +320,7 @@ test("prossimoNProg: massimo mai usato + 1, stessa lettera, ignora i codici fuor
 // Proposta del prossimo numero progressivo (spec §2.2): massimo mai usato con la
 // stessa lettera + 1. Scostamento dichiarato da procedure §3.3.
 export function prossimoNProg(codici, lettera = "A") {
+  if (!/^[A-Z]$/.test(lettera)) throw new Error("La lettera deve essere una maiuscola A-Z");
   const re = new RegExp(`^${lettera}(\\d+)$`);
   let max = 0, cifre = 4;
   for (const cod of codici) {
@@ -431,7 +450,8 @@ test("annotazioniDaEventi: senza eventi rilevanti → stringa vuota", () => {
 
 ```js
 // Precompilazione delle annotazioni per il cliente (spec §3.7): solo fatti, mai la diagnosi.
-const fmtM = (n) => new Intl.NumberFormat("it-IT", { maximumFractionDigits: 0 }).format(n ?? 0);
+// useGrouping "always": l'italiano di default non separa le migliaia sotto i 10.000 (1250 → "1250")
+const fmtM = (n) => new Intl.NumberFormat("it-IT", { maximumFractionDigits: 0, useGrouping: "always" }).format(n ?? 0);
 
 export function annotazioniDaEventi(eventi) {
   const frasi = [...eventi]
@@ -713,6 +733,11 @@ git commit -m "feat(sql): sezione a — ruoli, helper, trigger modificato, anagr
 -- ============================================================
 -- Sezione b: pianificazione, lavorazioni, rotoli lavorati, controlli, eventi
 -- ============================================================
+do $$ begin
+  if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'lavorazioni') then
+    raise exception 'Sezione b già applicata: non rieseguire';
+  end if;
+end $$;
 
 create table pianificazione (
   id                    uuid primary key default gen_random_uuid(),
@@ -887,27 +912,9 @@ do $$ begin
 end $$;
 ```
 
-- [ ] **Step 2: Applica** — `apply_migration` (`name: "000b_lavorazioni_controlli_eventi"`) con la sola sezione b. Expected: nessun errore.
+- [ ] **Step 2: Applica** — `apply_migration` (`name: "000b_lavorazioni_controlli_eventi"`) con la sola sezione b. Expected: nessun errore. (Il comportamento dei trigger dei fermi si prova al Task 13 con `test_regole.sql`, in una transazione annullata: nessuna prova manuale qui, per non lasciare righe in produzione.)
 
-- [ ] **Step 3: Prova il trigger dei fermi** — `execute_sql`, in transazione da annullare:
-
-```sql
-begin;
-insert into operatori (nome) values ('Prova') returning id;                              -- annota id → :op
-insert into rotoli_grezzi (n_prog, spessore_mm, larghezza_mm, peso_bolla_kg) values ('PROVA-0002', 2, 1500, 6500) returning id;   -- :gz
-insert into schede_lavorazione (lavorazione, tipo, micron, spessore_min, spessore_max, larghezza_min, larghezza_max)
-  values ('Prova', 'naturale', 5, 1, 3, 1000, 1500) returning id;                        -- :sch
-insert into lavorazioni (rotolo_grezzo_id, scheda_lavorazione_id, operatore_avvio_id, peso_con_imballo_kg)
-  values (:gz, :sch, :op, 6540) returning id;                                            -- :lav
-insert into eventi (lavorazione_id, tipo, causa_fermo, avvenuto_il) values (:lav, 'fermo', 'guasto', now() - interval '12 minutes') returning id;  -- :fermo
-insert into eventi (lavorazione_id, tipo, fermo_id, metri_scarto) values (:lav, 'ripartenza', :fermo, 100);
-select durata_min from eventi where id = :fermo;      -- atteso 12
-insert into eventi (lavorazione_id, tipo, fermo_id) values (:lav, 'ripartenza', :fermo);  -- atteso: errore unique
-rollback;
-```
-(Con il connettore, eseguire gli statement uno per volta sostituendo gli id restituiti; chiudere con `rollback`.) Expected: `durata_min = 12`; la seconda ripartenza fallisce per `eventi_un_fermo_una_ripartenza`; nessun errore di ricorsione.
-
-- [ ] **Step 4: Commit** — `git add sql/000_setup.sql && git commit -m "feat(sql): sezione b — lavorazioni, rotoli lavorati, controlli, eventi, trigger dei fermi"`
+- [ ] **Step 3: Commit** — `git add sql/000_setup.sql && git commit -m "feat(sql): sezione b — lavorazioni, rotoli lavorati, controlli, eventi, trigger dei fermi"`
 
 ---
 
@@ -925,6 +932,11 @@ rollback;
 -- Sezione c: viste. security_invoker = true: girano con i permessi di chi le interroga
 -- (leggono solo tabelle in select a tutti gli autenticati; non toccano rotoli_grezzi).
 -- ============================================================
+do $$ begin
+  if exists (select 1 from information_schema.views where table_schema = 'public' and table_name = 'lavorazioni_riepilogo') then
+    raise exception 'Sezione c già applicata: non rieseguire';
+  end if;
+end $$;
 
 create view lavorazioni_riepilogo with (security_invoker = true) as
 select l.*,
@@ -1001,6 +1013,11 @@ end $$;
 -- Sezione d: helper interni (prefisso _) e RPC. Tutte security definer + search_path.
 -- Le RPC sono l'UNICO varco di scrittura su lavorazioni e rotoli_lavorati.
 -- ============================================================
+do $$ begin
+  if exists (select 1 from pg_proc where proname = 'avvia_lavorazione' and pronamespace = 'public'::regnamespace) then
+    raise exception 'Sezione d già applicata: non rieseguire';
+  end if;
+end $$;
 
 -- Regola dei codici (spec §2.7). Duplicata in js/comune.js (codiciFigli): qui la verità.
 create or replace function _codici_figli(p_n_prog text, p_n_figli integer, p_kg_residui numeric, p_n_esistenti integer)
@@ -1008,6 +1025,7 @@ returns text[] language plpgsql immutable set search_path = public as $$
 declare cod text[] := '{}'; i integer;
 begin
   if p_n_figli < 1 then raise exception 'Serve almeno un rotolo finito'; end if;
+  if p_n_esistenti + p_n_figli > 26 then raise exception 'Troppi rotoli finiti da questo grezzo'; end if;
   if p_n_figli = 1 and p_kg_residui = 0 and p_n_esistenti = 0 then return array[p_n_prog]; end if;
   for i in 0 .. p_n_figli - 1 loop
     cod := cod || (p_n_prog || '/' || chr(65 + p_n_esistenti + i));
@@ -1086,6 +1104,7 @@ begin
   if p_peso_con_imballo is null or p_peso_con_imballo <= 0 then raise exception 'Il peso con imballo deve essere maggiore di zero'; end if;
   if p_peso_imballo is null or p_peso_imballo < 0 then raise exception 'Il peso dell''imballo non può essere negativo'; end if;
   if p_peso_imballo >= p_peso_con_imballo then raise exception 'Il peso dell''imballo deve essere minore del peso con imballo'; end if;
+  if coalesce(p_contametri_inizio, 0) < 0 then raise exception 'Il contametri iniziale non può essere negativo'; end if;
   select * into s from schede_lavorazione where id = p_scheda_id;
   if s.id is null then raise exception 'Scheda di lavorazione non trovata'; end if;
   if not exists (select 1 from operatori where id = p_operatore_id and attivo) then raise exception 'Operatore non valido'; end if;
@@ -1156,7 +1175,8 @@ begin
   if p_metri_scarto < 0 or p_metri_scarto > g.metri_stimati then
     raise exception 'I metri consumati superano il rotolo (massimo % m)', g.metri_stimati;
   end if;
-  -- controlli ed eventi restano: sono dati misurati
+  -- controlli ed eventi restano: sono dati misurati.
+  -- chiusa_il = now() per tutti: lo spec impone la regola ufficio/reparto sull'orario solo ad avvio e chiusura.
   update lavorazioni
      set stato = 'annullata', motivo_annullo = p_motivo, operatore_chiusura_id = p_operatore_id,
          chiusa_il = now(), contametri_fine = l.contametri_inizio + p_metri_scarto
@@ -1184,6 +1204,11 @@ declare g rotoli_grezzi; s schede_lavorazione; v_id uuid; n_esistenti integer; c
 begin
   if coalesce(ruolo_utente(), '') <> 'ufficio' then raise exception 'Non autorizzato'; end if;
   if p_chiusa_il <= p_avviata_il then raise exception 'La chiusura deve essere dopo l''avvio'; end if;
+  -- le ripartenze hanno bisogno del fermo_id, che qui non esiste ancora: si rifiutano in italiano.
+  -- L'ufficio le aggiunge dopo, dalla scheda della lavorazione (la policy ev_ins glielo consente).
+  if exists (select 1 from jsonb_array_elements(coalesce(p_eventi, '[]'::jsonb)) x where x->>'tipo' = 'ripartenza') then
+    raise exception 'I fermi con ripartenza si registrano dopo, dalla scheda della lavorazione: qui inserisci solo il fermo';
+  end if;
   select * into g from rotoli_grezzi where id = p_rotolo_grezzo_id for update;
   if g.id is null then raise exception 'Rotolo non trovato'; end if;
   select * into s from schede_lavorazione where id = p_scheda_id;
@@ -1194,7 +1219,11 @@ begin
   end if;
   perform _controlla_figli_e_bilancio(p_peso_con_imballo, p_peso_imballo, p_peso_tubolare, p_figli, coalesce(p_kg_residui, 0));
   select count(*) into n_esistenti from rotoli_lavorati where rotolo_grezzo_id = g.id;
-  codici := _codici_figli(g.n_prog, jsonb_array_length(p_figli), coalesce(p_kg_residui, 0), n_esistenti);
+  -- Se il grezzo è già andato avanti (in_lavorazione o esaurito da un'altra lavorazione), questa
+  -- non è stata l'unica: i codici prendono il suffisso come se ci fosse un residuo, così il
+  -- figlio che chiuderà dopo avrà /B e non un codice senza suffisso accanto a uno con.
+  codici := _codici_figli(g.n_prog, jsonb_array_length(p_figli),
+                          case when g.stato <> 'grezzo' then 1 else coalesce(p_kg_residui, 0) end, n_esistenti);
   insert into lavorazioni (rotolo_grezzo_id, scheda_lavorazione_id, velocita_prevista, ampere_previsti, micron_previsti,
                            operatore_avvio_id, avviata_il, peso_con_imballo_kg, peso_imballo_kg, contametri_inizio,
                            peso_tubolare_kg, contametri_fine, operatore_chiusura_id, chiusa_il,
@@ -1213,7 +1242,7 @@ begin
             (c->>'micron')::numeric, (c->>'gloss_parallelo')::numeric, (c->>'gloss_perpendicolare')::numeric, c->>'note');
   end loop;
   for e in select * from jsonb_array_elements(coalesce(p_eventi, '[]'::jsonb)) loop
-    -- i fermi registrati a posteriori portano già la durata: si inseriscono come fermo + ripartenza
+    -- solo eventi senza fermo_id (mai ripartenze: respinte sopra)
     insert into eventi (lavorazione_id, avvenuto_il, operatore_id, tipo, contametri, tipo_difetto_id, causa_fermo, prodotto, litri, metri_scarto, descrizione)
     values (v_id, coalesce((e->>'avvenuto_il')::timestamptz, p_avviata_il), (e->>'operatore_id')::uuid, e->>'tipo',
             (e->>'contametri')::numeric, (e->>'tipo_difetto_id')::uuid, e->>'causa_fermo', e->>'prodotto', (e->>'litri')::numeric,
@@ -1232,7 +1261,11 @@ begin
   return jsonb_build_object('lavorazione_id', v_id, 'codici', to_jsonb(codici), 'avviso', avviso);
 end $$;
 
--- Permessi di esecuzione: mai anon/public
+-- Permessi di esecuzione: mai anon/public (anche gli helper di ruolo, per coerenza con ruolo_utente)
+revoke execute on function e_ufficio() from public, anon;
+revoke execute on function e_reparto() from public, anon;
+grant execute on function e_ufficio() to authenticated;
+grant execute on function e_reparto() to authenticated;
 revoke execute on function avvia_lavorazione(uuid,uuid,uuid,numeric,numeric,numeric,uuid,timestamptz) from public, anon;
 revoke execute on function chiudi_lavorazione(uuid,uuid,numeric,numeric,jsonb,numeric,timestamptz) from public, anon;
 revoke execute on function annulla_lavorazione(uuid,uuid,text,numeric) from public, anon;
@@ -1246,12 +1279,13 @@ grant execute on function annulla_lavorazione(uuid,uuid,text,numeric) to authent
 grant execute on function registra_lavorazione_completa(uuid,uuid,uuid,timestamptz,numeric,numeric,numeric,jsonb,jsonb,uuid,timestamptz,numeric,numeric,jsonb,numeric,text) to authenticated;
 
 do $$ begin
-  assert (select count(*) from pg_proc where proname in ('avvia_lavorazione','chiudi_lavorazione','annulla_lavorazione','registra_lavorazione_completa')) = 4,
+  assert (select count(*) from pg_proc where pronamespace = 'public'::regnamespace
+          and proname in ('avvia_lavorazione','chiudi_lavorazione','annulla_lavorazione','registra_lavorazione_completa')) = 4,
          'mancano RPC';
 end $$;
 ```
 
-Nota sugli eventi registrati a posteriori: la RPC inserisce le righe `fermo` e `ripartenza` come arrivano nell'array; la UI della Fase 4 costruirà `fermo_id` inserendo prima i fermi e poi le ripartenze con l'id restituito — per la Fase 0 basta che la RPC accetti eventi senza `fermo_id` (un fermo senza ripartenza resta aperto su una lavorazione già chiusa: la Fase 4 lo impedirà lato UI).
+Nota sugli eventi registrati a posteriori: la RPC accetta `fermo`, `difetto`, `aggiunta`, `giunta_film`, `taglio_film`, `primi_metri_non_ossidati`, `nota` e **rifiuta le `ripartenza`** con un messaggio in italiano, perché non conosce ancora gli id dei fermi che crea. Un fermo così registrato resta aperto sulla lavorazione chiusa; l'ufficio aggiunge la ripartenza subito dopo dalla scheda della lavorazione (Fase 4), cosa che la policy `ev_ins` gli consente. Il test del Task 13 verifica il rifiuto.
 
 - [ ] **Step 2: Applica** — `apply_migration` (`name: "000d_rpc"`). Expected: nessun errore.
 
@@ -1270,19 +1304,32 @@ Nota sugli eventi registrati a posteriori: la RPC inserisce le righe `fermo` e `
 
 ```sql
 -- ============================================================
--- Sezione e: RLS (righe) + grant (colonne) + realtime. Servono entrambi (spec §5.3).
--- Supabase concede per default tutto ad anon/authenticated sulle tabelle nuove: si revoca
--- e si concede solo l'indispensabile.
+-- Sezione e: RLS (righe) + grant (colonne). Servono entrambi (spec §5.3).
+-- Supabase concede per default TUTTO (anche truncate/references/trigger) ad anon e
+-- authenticated sulle tabelle e viste nuove: si revoca tutto e si concede solo l'indispensabile.
+-- Il realtime sta nella sezione f, separata, perché può fallire per proprietà della publication.
 -- ============================================================
+do $$ begin
+  if exists (select 1 from pg_policies where schemaname = 'public' and policyname = 'grezzi_sel') then
+    raise exception 'Sezione e già applicata: non rieseguire';
+  end if;
+end $$;
 
--- ---------- anon: niente ----------
+-- ---------- anon: niente, su tabelle e viste ----------
 revoke all on all tables in schema public from anon;
-revoke all on all sequences in schema public from anon;
 
--- ---------- Anagrafiche: lettura a tutti, scrittura ufficio ----------
+-- ---------- authenticated: si parte da zero su ogni tabella, poi solo select + colonne ----------
+revoke all on operatori, schede_lavorazione, tipi_difetto, rotoli_grezzi, pianificazione,
+              lavorazioni, rotoli_lavorati, controlli, eventi from authenticated;
+grant select on operatori, schede_lavorazione, tipi_difetto, rotoli_grezzi, pianificazione,
+                lavorazioni, rotoli_lavorati, controlli, eventi to authenticated;
+-- (select su rotoli_grezzi serve a PostgREST per "insert … returning" dell'ufficio; la RIGA la filtra la RLS)
+
+-- ---------- Anagrafiche: lettura a tutti, scrittura ufficio (tutte le colonne) ----------
 alter table operatori enable row level security;
 alter table schede_lavorazione enable row level security;
 alter table tipi_difetto enable row level security;
+grant insert, update, delete on operatori, schede_lavorazione, tipi_difetto to authenticated;
 create policy operatori_sel on operatori for select to authenticated using (true);
 create policy operatori_ins on operatori for insert to authenticated with check (e_ufficio());
 create policy operatori_upd on operatori for update to authenticated using (e_ufficio());
@@ -1304,12 +1351,14 @@ create policy grezzi_upd on rotoli_grezzi for update to authenticated
   using (e_ufficio() and stato = 'grezzo') with check (e_ufficio() and stato = 'grezzo');
 create policy grezzi_del on rotoli_grezzi for delete to authenticated
   using (e_ufficio() and stato = 'grezzo' and not exists (select 1 from lavorazioni l where l.rotolo_grezzo_id = rotoli_grezzi.id));
-revoke insert, update on rotoli_grezzi from authenticated;
 grant insert (n_prog, fornitore, rif_bolla, cliente, lega, finitura, spessore_mm, larghezza_mm, peso_bolla_kg, data_arrivo, posizione, note)
   on rotoli_grezzi to authenticated;
 grant update (n_prog, fornitore, rif_bolla, cliente, lega, finitura, spessore_mm, larghezza_mm, peso_bolla_kg, data_arrivo, posizione, note, kg_residui)
   on rotoli_grezzi to authenticated;                                  -- mai stato, mai modificato_*
-revoke all on rotoli_grezzi_reparto from anon;
+grant delete on rotoli_grezzi to authenticated;                       -- la riga la filtra grezzi_del
+-- La vista del reparto è a tabella singola, quindi AUTO-AGGIORNABILE, e con security_invoker = false
+-- ogni scrittura girerebbe come proprietario scavalcando la RLS: deve restare in SOLA lettura.
+revoke all on rotoli_grezzi_reparto from anon, authenticated;
 grant select on rotoli_grezzi_reparto to authenticated;
 
 -- ---------- pianificazione ----------
@@ -1318,26 +1367,31 @@ create policy pian_sel on pianificazione for select to authenticated using (true
 create policy pian_ins on pianificazione for insert to authenticated with check (e_ufficio());
 create policy pian_upd on pianificazione for update to authenticated using (e_ufficio());
 create policy pian_del on pianificazione for delete to authenticated using (e_ufficio());
-revoke insert, update on pianificazione from authenticated;
 grant insert (settimana, posizione, rotolo_grezzo_id, scheda_lavorazione_id, suddivisione_prevista, note) on pianificazione to authenticated;
 grant update (settimana, posizione, rotolo_grezzo_id, scheda_lavorazione_id, suddivisione_prevista, note) on pianificazione to authenticated;
+grant delete on pianificazione to authenticated;
+
+-- Nota valida per tutte le policy di update senza "with check" esplicito (operatori, schede,
+-- difetti, pianificazione, rotoli_lavorati, controlli, eventi): Postgres riusa l'espressione
+-- "using" anche come "with check". È il comportamento voluto: per controlli ed eventi impedisce
+-- di SPOSTARE una riga su una lavorazione chiusa.
 
 -- ---------- lavorazioni: insert solo RPC; update ufficio su chiuse, solo alcune colonne ----------
+-- Le note di una lavorazione ANNULLATA non sono scrivibili (policy stato = 'chiusa'): il posto è
+-- motivo_annullo, scritto dalla RPC. Le fasi successive non devono costruire un campo "note" per le annullate.
 alter table lavorazioni enable row level security;
 create policy lav_sel on lavorazioni for select to authenticated using (true);
 create policy lav_upd on lavorazioni for update to authenticated
   using (e_ufficio() and stato = 'chiusa') with check (e_ufficio() and stato = 'chiusa');
-revoke insert, update, delete on lavorazioni from authenticated;
 grant update (note, stampata_il, peso_con_imballo_kg, peso_imballo_kg, peso_tubolare_kg, contametri_inizio, contametri_fine)
-  on lavorazioni to authenticated;                                    -- mai stato, mai modificato_*
+  on lavorazioni to authenticated;                                    -- mai stato, mai modificato_*; niente insert/delete
 
 -- ---------- rotoli_lavorati: insert solo RPC; update ufficio su alcune colonne ----------
 alter table rotoli_lavorati enable row level security;
 create policy rl_sel on rotoli_lavorati for select to authenticated using (true);
 create policy rl_upd on rotoli_lavorati for update to authenticated using (e_ufficio());
-revoke insert, update, delete on rotoli_lavorati from authenticated;
 grant update (cliente, film, tipo_film, annotazioni_cliente, metri, peso_lordo_kg, peso_tubolare_kg)
-  on rotoli_lavorati to authenticated;                                -- mai codice, mai lavorazione_id
+  on rotoli_lavorati to authenticated;                                -- mai codice, mai lavorazione_id; niente insert/delete
 
 -- ---------- controlli ed eventi: reparto solo su lavorazione aperta ----------
 alter table controlli enable row level security;
@@ -1346,7 +1400,6 @@ create policy ctl_ins on controlli for insert to authenticated
   with check (e_ufficio() or (e_reparto() and exists (select 1 from lavorazioni l where l.id = lavorazione_id and l.stato = 'aperta')));
 create policy ctl_upd on controlli for update to authenticated
   using (e_ufficio() or (e_reparto() and exists (select 1 from lavorazioni l where l.id = lavorazione_id and l.stato = 'aperta')));
-revoke insert, update, delete on controlli from authenticated;
 grant insert (lavorazione_id, rilevato_il, operatore_id, momento, contametri, velocita_m_min, corrente_a, tensione_v,
               temp_sgrassatura, temp_satina, temp_ossido, temp_fissaggio, micron, gloss_parallelo, gloss_perpendicolare, note)
   on controlli to authenticated;
@@ -1360,17 +1413,39 @@ create policy ev_ins on eventi for insert to authenticated
   with check (e_ufficio() or (e_reparto() and exists (select 1 from lavorazioni l where l.id = lavorazione_id and l.stato = 'aperta')));
 create policy ev_upd on eventi for update to authenticated
   using (e_ufficio() or (e_reparto() and exists (select 1 from lavorazioni l where l.id = lavorazione_id and l.stato = 'aperta')));
-revoke insert, update, delete on eventi from authenticated;
 grant insert (lavorazione_id, avvenuto_il, operatore_id, tipo, contametri, tipo_difetto_id, causa_fermo, prodotto, litri, fermo_id, metri_scarto, descrizione)
   on eventi to authenticated;
 grant update (avvenuto_il, operatore_id, tipo, contametri, tipo_difetto_id, causa_fermo, prodotto, litri, fermo_id, metri_scarto, descrizione)
   on eventi to authenticated;                                         -- mai durata_min, mai modificato_*
 
--- ---------- viste invoker ----------
-revoke all on lavorazioni_riepilogo, controlli_scostamenti from anon;
+-- ---------- viste invoker: sola lettura ----------
+revoke all on lavorazioni_riepilogo, controlli_scostamenti from anon, authenticated;
 grant select on lavorazioni_riepilogo, controlli_scostamenti to authenticated;
 
--- ---------- realtime: solo le tre tabelle del turno ----------
+-- ---------- Verifiche finali (sezione e) ----------
+do $$ begin
+  assert (select count(*) from pg_tables where schemaname = 'public' and rowsecurity) = 10, 'RLS non attiva su tutte le tabelle';
+  assert not exists (select 1 from information_schema.column_privileges
+                     where table_schema = 'public' and grantee = 'authenticated' and privilege_type in ('INSERT','UPDATE')
+                       and column_name in ('modificato_da','modificato_il','durata_min','stato','codice')), 'il client ha grant su colonne riservate';
+  -- le tre viste devono avere SOLO select per authenticated e niente per anon
+  assert not exists (select 1 from information_schema.table_privileges
+                     where table_schema = 'public' and table_name in ('rotoli_grezzi_reparto','lavorazioni_riepilogo','controlli_scostamenti')
+                       and (grantee = 'anon' or (grantee = 'authenticated' and privilege_type <> 'SELECT'))), 'una vista è scrivibile o visibile ad anon';
+  assert not exists (select 1 from information_schema.table_privileges
+                     where table_schema = 'public' and grantee = 'authenticated' and privilege_type in ('TRUNCATE','REFERENCES','TRIGGER')), 'authenticated ha privilegi di tabella oltre il necessario';
+end $$;
+```
+
+- [ ] **Step 2: Applica** — `apply_migration` (`name: "000e_rls_grant"`). Expected: nessun errore, verifiche finali passate. Se l'assert sulle RLS conta 9, controlla `utenti_app` (deve avere RLS attiva dalla sezione a).
+
+- [ ] **Step 3: Appendi la sezione f — realtime, come migrazione separata**
+
+```sql
+-- ============================================================
+-- Sezione f: realtime, solo le tre tabelle del turno. Separata perché "alter publication"
+-- richiede di essere proprietari della publication: se fallisce, RLS e grant restano acquisiti.
+-- ============================================================
 do $$
 declare t text;
 begin
@@ -1379,21 +1454,12 @@ begin
       execute format('alter publication supabase_realtime add table %I', t);
     end if;
   end loop;
-end $$;
-
--- ---------- Verifiche finali (sezione e) ----------
-do $$ begin
-  assert (select count(*) from pg_tables where schemaname = 'public' and rowsecurity) = 10, 'RLS non attiva su tutte le tabelle';
   assert (select count(*) from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public') = 3, 'realtime: attese 3 tabelle';
-  assert not exists (select 1 from information_schema.column_privileges
-                     where table_schema = 'public' and grantee = 'authenticated' and privilege_type in ('INSERT','UPDATE')
-                       and column_name in ('modificato_da','modificato_il','durata_min')), 'il client ha grant su colonne riservate';
 end $$;
 ```
+Applica con `apply_migration` (`name: "000f_realtime"`). **Piano B:** se risponde `must be owner of publication supabase_realtime`, attivare le tre tabelle dalla dashboard (Database → Publications → `supabase_realtime` → abilitare `lavorazioni`, `controlli`, `eventi`) e annotarlo nello STATO fra le cose fatte a mano; poi rieseguire solo l'`assert`.
 
-- [ ] **Step 2: Applica** — `apply_migration` (`name: "000e_rls_grant_realtime"`). Expected: nessun errore, verifiche finali passate. Se l'assert sulle RLS conta 9, controlla `utenti_app` (deve avere RLS attiva dalla sezione a).
-
-- [ ] **Step 3: Commit** — `git commit -m "feat(sql): sezione e — RLS, grant per colonna, realtime"`
+- [ ] **Step 4: Commit** — `git commit -m "feat(sql): sezioni e-f — RLS, grant per colonna, viste in sola lettura, realtime"`
 
 ---
 
@@ -1477,32 +1543,42 @@ insert into schede_lavorazione (lavorazione, tipo, micron, spessore_min, spessor
   values ('TEST OX Satinato 5 micron', 'satinato', 5, 1, 3, 1000, 1500, 2.3, 8400, 37, 33, 39);
 insert into rotoli_grezzi (n_prog, fornitore, spessore_mm, larghezza_mm, peso_bolla_kg) values ('T5000', 'Forn. Test', 2, 1500, 6500);
 insert into rotoli_grezzi (n_prog, fornitore, spessore_mm, larghezza_mm, peso_bolla_kg) values ('T5001', 'Forn. Test', 2, 1500, 6500);
+insert into rotoli_grezzi (n_prog, fornitore, spessore_mm, larghezza_mm, peso_bolla_kg) values ('T5004', 'Forn. Test', 2, 1500, 6500);
 
 -- ---------- Come REPARTO ----------
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000bbbb","role":"authenticated"}', true);
 
 do $$
-declare op uuid; sch uuid; gz uuid; lav uuid; codici text[]; f uuid; n int; g rotoli_grezzi;
+declare op uuid; sch uuid; gz uuid; gz2 uuid; lav uuid; lav2 uuid; codici text[]; f uuid; f2 uuid; n int; g rotoli_grezzi;
 begin
   assert ruolo_utente() = 'reparto', 'ruolo reparto';
   select id into op from operatori where nome = 'Test Operatore';
   select id into sch from schede_lavorazione where lavorazione = 'TEST OX Satinato 5 micron';
 
-  -- il reparto NON legge rotoli_grezzi, legge la vista
+  -- il reparto NON legge rotoli_grezzi, legge la vista; la vista NON espone fornitore e bolla
   select count(*) into n from rotoli_grezzi where n_prog = 'T5000';            assert n = 0, 'reparto legge rotoli_grezzi';
   select id into gz from rotoli_grezzi_reparto where n_prog = 'T5000';         assert gz is not null, 'reparto non legge la vista';
+  assert not exists (select 1 from information_schema.columns where table_schema = 'public'
+                     and table_name = 'rotoli_grezzi_reparto' and column_name in ('fornitore','rif_bolla')),
+         'la vista del reparto espone fornitore o rif_bolla';
+  begin  -- la vista è in sola lettura anche per chi è autenticato
+    update rotoli_grezzi_reparto set kg_residui = 1 where id = gz;
+    raise exception 'ATTESO ERRORE (scrittura sulla vista)';
+  exception when insufficient_privilege then null; end;
 
   -- ESEMPIO SPEC §2.7, PRIMO GIRO (caso C)
   lav := avvia_lavorazione(gz, sch, op, 6540, 45, 100);
   select * into g from rotoli_grezzi_reparto where id = gz;                    assert g.stato = 'in_lavorazione', 'grezzo in lavorazione';
+  -- NB: le sentinelle "ATTESO ERRORE (…)" non devono contenere il testo cercato dal like,
+  -- altrimenti il test passa anche se la guardia sparisce.
   begin  -- avvio doppio sulla linea
     perform avvia_lavorazione((select id from rotoli_grezzi_reparto where n_prog = 'T5001'), sch, op, 1000, 0, 0);
-    raise exception 'ATTESO ERRORE avvio doppio';
+    raise exception 'ATTESO ERRORE (secondo avvio sulla linea)';
   exception when others then assert sqlerrm like '%già una lavorazione aperta%', 'msg avvio doppio: ' || sqlerrm; end;
   begin  -- avvio di un in_lavorazione
     perform avvia_lavorazione(gz, sch, op, 1000, 0, 0);
-    raise exception 'ATTESO ERRORE già in lavorazione';
+    raise exception 'ATTESO ERRORE (avvio su rotolo occupato)';
   exception when others then assert sqlerrm like '%già in lavorazione%', 'msg in lavorazione: ' || sqlerrm; end;
 
   -- controllo e fermo/ripartenza
@@ -1512,31 +1588,39 @@ begin
   insert into eventi (lavorazione_id, tipo, causa_fermo, avvenuto_il) values (lav, 'fermo', 'guasto', now() - interval '12 minutes') returning id into f;
   begin  -- chiusura con fermo aperto
     perform chiudi_lavorazione(lav, op, null, 600, '[{"peso_lordo_kg":4090,"peso_tubolare_kg":40}]'::jsonb, 2450);
-    raise exception 'ATTESO ERRORE fermo aperto';
+    raise exception 'ATTESO ERRORE (chiusura con fermo non chiuso)';
   exception when others then assert sqlerrm like '%fermo aperto%', 'msg fermo aperto: ' || sqlerrm; end;
+  begin  -- annullo con fermo aperto: stessa guardia
+    perform annulla_lavorazione(lav, op, 'prova', 0);
+    raise exception 'ATTESO ERRORE (annullo con fermo non chiuso)';
+  exception when others then assert sqlerrm like '%fermo aperto%', 'msg annullo con fermo: ' || sqlerrm; end;
+  begin  -- ripartenza precedente al fermo
+    insert into eventi (lavorazione_id, tipo, fermo_id, avvenuto_il) values (lav, 'ripartenza', f, now() - interval '20 minutes');
+    raise exception 'ATTESO ERRORE (ripartenza prima del fermo)';
+  exception when others then assert sqlerrm like '%non può precedere%', 'msg precede: ' || sqlerrm; end;
   insert into eventi (lavorazione_id, tipo, fermo_id, metri_scarto) values (lav, 'ripartenza', f, 100);
   assert (select durata_min from eventi where id = f) = 12, 'durata_min 12';
   begin  -- ripartenza doppia
     insert into eventi (lavorazione_id, tipo, fermo_id) values (lav, 'ripartenza', f);
-    raise exception 'ATTESO ERRORE ripartenza doppia';
+    raise exception 'ATTESO ERRORE (seconda ripartenza)';
   exception when unique_violation then null; end;
   begin  -- reparto non scrive durata_min
     update eventi set durata_min = 1 where id = f;
-    raise exception 'ATTESO ERRORE grant durata_min';
+    raise exception 'ATTESO ERRORE (grant durata_min)';
   exception when insufficient_privilege then null; end;
 
   -- guardie di chiusura
   begin  -- residuo > 0 con tubolare non null
     perform chiudi_lavorazione(lav, op, 60, 600, '[{"peso_lordo_kg":4090,"peso_tubolare_kg":40}]'::jsonb, 2450);
-    raise exception 'ATTESO ERRORE residuo con tubolare';
+    raise exception 'ATTESO ERRORE (residuo e tubolare insieme)';
   exception when others then assert sqlerrm like '%tubolare non si pesa%', 'msg: ' || sqlerrm; end;
   begin  -- residuo 0 con tubolare null
     perform chiudi_lavorazione(lav, op, null, 600, '[{"peso_lordo_kg":4090,"peso_tubolare_kg":40}]'::jsonb, 0);
-    raise exception 'ATTESO ERRORE tubolare mancante';
+    raise exception 'ATTESO ERRORE (manca il tubolare)';
   exception when others then assert sqlerrm like '%serve il peso del tubolare%', 'msg: ' || sqlerrm; end;
   begin  -- bilancio oltre tolleranza
     perform chiudi_lavorazione(lav, op, null, 600, '[{"peso_lordo_kg":4090,"peso_tubolare_kg":40}]'::jsonb, 2700);
-    raise exception 'ATTESO ERRORE bilancio';
+    raise exception 'ATTESO ERRORE (pesi oltre il tetto)';
   exception when others then assert sqlerrm like '%supera il disponibile%', 'msg: ' || sqlerrm; end;
 
   -- chiusura caso C
@@ -1547,13 +1631,33 @@ begin
   assert (select kg_scarto from lavorazioni_riepilogo where id = lav) is null, 'kg_scarto null nel caso C';
   assert (select metri from rotoli_lavorati where codice = 'T5000/A') = 500, 'metri figlio = round(4050/8,1)';
 
-  -- reparto non inserisce controlli su lavorazione chiusa
+  -- reparto non inserisce controlli su lavorazione chiusa (la violazione del "with check" RLS è 42501)
   begin
     insert into controlli (lavorazione_id, operatore_id, momento) values (lav, op, 'periodico');
-    raise exception 'ATTESO ERRORE controllo su chiusa';
-  exception when insufficient_privilege or check_violation then null; end;
+    raise exception 'ATTESO ERRORE (controllo su lavorazione chiusa)';
+  exception when insufficient_privilege then null; end;
 
-  -- SECONDO GIRO (imballo 0, tubolare 60, caso A → /B)
+  -- CASO A PURO su T5004: un figlio, residuo 0, nessun figlio precedente → codice SENZA suffisso
+  select id into gz2 from rotoli_grezzi_reparto where n_prog = 'T5004';
+  lav2 := avvia_lavorazione(gz2, sch, op, 6500, 0, 0);
+  codici := chiudi_lavorazione(lav2, op, 60, 800, '[{"peso_lordo_kg":6340,"peso_tubolare_kg":40}]'::jsonb, 0);
+  assert codici = array['T5004'], 'codice caso A puro: ' || array_to_string(codici, ',');
+
+  -- fermo e ripartenza su una seconda lavorazione (T5001), poi CASO B
+  select id into gz2 from rotoli_grezzi_reparto where n_prog = 'T5001';
+  lav2 := avvia_lavorazione(gz2, sch, op, 6500, 0, 0);
+  insert into eventi (lavorazione_id, tipo, causa_fermo, avvenuto_il) values (lav2, 'fermo', 'bagno', now() - interval '5 minutes') returning id into f2;
+  insert into eventi (lavorazione_id, tipo, fermo_id, metri_scarto) values (lav2, 'ripartenza', f2, 80);
+  assert (select durata_min from eventi where id = f2) = 5, 'durata_min 5';
+  -- CASO B su T5001: due figli in una chiusura, tubolare 0 ("senza tubolare") → /A e /B
+  codici := chiudi_lavorazione(lav2, op, 0, 800,
+    '[{"peso_lordo_kg":3240,"peso_tubolare_kg":40},{"peso_lordo_kg":3160,"peso_tubolare_kg":40}]'::jsonb, 0);
+  assert codici = array['T5001/A','T5001/B'], 'codici caso B: ' || array_to_string(codici, ',');
+  assert (select count(*) from rotoli_lavorati where lavorazione_id = lav2) = 2, 'due figli';
+  assert (select peso_netto_kg from rotoli_lavorati where codice = 'T5001/A') = 3200, 'il primo codice va al primo figlio dell''array';
+  assert (select kg_scarto from lavorazioni_riepilogo where id = lav2) = 6500 - 3200 - 3120, 'kg_scarto caso B';
+
+  -- SECONDO GIRO su T5000 (imballo 0, tubolare 60, un figlio, residuo 0 → /B)
   lav := avvia_lavorazione(gz, sch, op, 2500, 0, 0);
   codici := chiudi_lavorazione(lav, op, 60, 300, '[{"peso_lordo_kg":2410,"peso_tubolare_kg":40}]'::jsonb, 0);
   assert codici = array['T5000/B'], 'codice secondo giro: ' || array_to_string(codici, ',');
@@ -1561,29 +1665,23 @@ begin
   select * into g from rotoli_grezzi_reparto where id = gz;
   assert g.stato = 'esaurito' and g.kg_residui = 0 and g.metri_stimati = 0, 'grezzo esaurito';
 
-  -- CASO A PURO su T5001, tubolare 0 ("senza tubolare") → codice senza suffisso
-  select id into gz from rotoli_grezzi_reparto where n_prog = 'T5001';
-  lav := avvia_lavorazione(gz, sch, op, 6500, 0, 0);
-  codici := chiudi_lavorazione(lav, op, 0, 800, '[{"peso_lordo_kg":6400,"peso_tubolare_kg":0}]'::jsonb, 0);
-  assert codici = array['T5001'], 'codice caso A: ' || array_to_string(codici, ',');
-
   -- reparto non chiama registra_lavorazione_completa
   begin
     perform registra_lavorazione_completa(gz, sch, op, now() - interval '2 hours', 1000, 0, 0, '[]', '[]', op, now(), 0, 100, '[{"peso_lordo_kg":900}]'::jsonb, 0, null);
-    raise exception 'ATTESO ERRORE non autorizzato';
+    raise exception 'ATTESO ERRORE (reparto su RPC ufficio)';
   exception when others then assert sqlerrm = 'Non autorizzato', 'msg: ' || sqlerrm; end;
 
   -- reparto non aggiorna lo stato di una lavorazione
   begin
     update lavorazioni set stato = 'aperta' where id = lav;
-    raise exception 'ATTESO ERRORE grant stato';
+    raise exception 'ATTESO ERRORE (grant stato)';
   exception when insufficient_privilege then null; end;
 end $$;
 
 -- ---------- Come UFFICIO ----------
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000aaaa","role":"authenticated"}', true);
 do $$
-declare op uuid; sch uuid; gz uuid; lav uuid; r jsonb; g rotoli_grezzi;
+declare op uuid; sch uuid; gz uuid; gz2 uuid; lav uuid; lav2 uuid; r jsonb; g rotoli_grezzi; n int; f_u uuid;
 begin
   assert ruolo_utente() = 'ufficio', 'ruolo ufficio';
   select id into op from operatori where nome = 'Test Operatore';
@@ -1596,33 +1694,69 @@ begin
   insert into controlli (lavorazione_id, operatore_id, momento) values (lav, op, 'inizio');
   perform annulla_lavorazione(lav, op, 'aggancio non riuscito', 50);
   select * into g from rotoli_grezzi where id = gz;
-  assert g.stato = 'grezzo' and g.kg_residui = 6500 - 50 * 8.1, 'residui dopo annullo: ' || g.kg_residui;
+  assert g.stato = 'grezzo' and g.kg_residui = 6500 - 50 * 8.1, 'residui dopo annullo: ' || g.kg_residui;   -- numeric esatto: 6095
   assert (select stato from lavorazioni where id = lav) = 'annullata', 'annullata';
   assert (select contametri_fine - contametri_inizio from lavorazioni where id = lav) = 50, 'metri consumati derivabili';
   begin  -- metri oltre il rotolo
     lav := avvia_lavorazione(gz, sch, op, 6000, 0, 0);
     perform annulla_lavorazione(lav, op, 'prova', 99999);
-    raise exception 'ATTESO ERRORE metri oltre';
+    raise exception 'ATTESO ERRORE (metri oltre il rotolo)';
   exception when others then assert sqlerrm like '%superano il rotolo%', 'msg: ' || sqlerrm; end;
+  -- (l'avvio dentro il blocco exception è stato annullato con l'errore: la linea è di nuovo libera)
 
-  -- registrazione a posteriori mentre un'altra lavorazione è aperta (sulla linea c'è T5002 aperta dal blocco sopra)
+  -- la linea viene occupata DAVVERO, fuori da ogni blocco exception
+  insert into rotoli_grezzi (n_prog, spessore_mm, larghezza_mm, peso_bolla_kg) values ('T5005', 2, 1500, 6500) returning id into gz2;
+  lav2 := avvia_lavorazione(gz2, sch, op, 6540, 45, 0);
+  select count(*) into n from lavorazioni where stato = 'aperta';   assert n = 1, 'serve una lavorazione aperta per i test seguenti';
+
+  -- ufficio non modifica un grezzo in lavorazione (policy stato = grezzo): l'update tocca 0 righe
+  update rotoli_grezzi set cliente = 'X' where id = gz2;
+  assert (select cliente from rotoli_grezzi where id = gz2) is distinct from 'X', 'la policy deve impedire la modifica di un grezzo in lavorazione';
+  -- ufficio non può cambiare lo stato nemmeno con la RLS a favore: manca il grant di colonna
+  begin
+    update rotoli_grezzi set stato = 'grezzo' where id = gz2;
+    raise exception 'ATTESO ERRORE (grant stato grezzo)';
+  exception when insufficient_privilege then null; end;
+
+  -- registrazione a posteriori MENTRE la linea è occupata: deve riuscire (riga già chiusa, niente indice)
   insert into rotoli_grezzi (n_prog, spessore_mm, larghezza_mm, peso_bolla_kg) values ('T5003', 2, 1500, 6500) returning id into gz;
   r := registra_lavorazione_completa(gz, sch, op, now() - interval '3 hours', 6500, 0, 0,
-        '[{"momento":"inizio","temp_ossido":37}]'::jsonb, '[{"tipo":"nota","descrizione":"da carta"}]'::jsonb,
+        '[{"momento":"inizio","temp_ossido":37}]'::jsonb,
+        '[{"tipo":"nota","descrizione":"da carta"},{"tipo":"fermo","causa_fermo":"guasto"}]'::jsonb,
         op, now() - interval '1 hour', 60, 800, '[{"peso_lordo_kg":6300,"peso_tubolare_kg":40}]'::jsonb, 0, 'ricopiata');
   assert r->'codici' = '["T5003"]'::jsonb, 'codice a posteriori: ' || r::text;
   assert (select stato from rotoli_grezzi where id = gz) = 'esaurito', 'grezzo esaurito a posteriori';
   assert (select count(*) from controlli where lavorazione_id = (r->>'lavorazione_id')::uuid) = 1, 'controllo ricopiato';
+  assert (select count(*) from eventi where lavorazione_id = (r->>'lavorazione_id')::uuid) = 2, 'eventi ricopiati';
+  begin  -- le ripartenze sono rifiutate in italiano
+    perform registra_lavorazione_completa(gz2, sch, op, now() - interval '3 hours', 6500, 0, 0, '[]'::jsonb,
+        '[{"tipo":"ripartenza"}]'::jsonb, op, now() - interval '1 hour', 60, 800, '[{"peso_lordo_kg":6300,"peso_tubolare_kg":40}]'::jsonb, 0, null);
+    raise exception 'ATTESO ERRORE (ripartenza a posteriori)';
+  exception when others then assert sqlerrm like '%si registrano dopo%', 'msg ripartenza: ' || sqlerrm; end;
+  -- registrazione a posteriori su un grezzo già avanzato (gz2 è in_lavorazione): riesce con avviso, senza toccare il grezzo
+  r := registra_lavorazione_completa(gz2, sch, op, now() - interval '5 hours', 1000, 0, 0, '[]'::jsonb, '[]'::jsonb,
+        op, now() - interval '4 hours', 0, 100, '[{"peso_lordo_kg":900,"peso_tubolare_kg":0}]'::jsonb, 0, null);
+  assert (r->>'avviso') like '%già stato ripreso%', 'avviso grezzo avanzato: ' || r::text;
+  assert (select stato from rotoli_grezzi where id = gz2) = 'in_lavorazione', 'il grezzo avanzato non viene toccato';
+  assert r->'codici' = '["T5005/A"]'::jsonb, 'codice con grezzo avanzato (residuo implicito → suffisso): ' || r::text;
 
   -- il check del caso C respinge un update diretto che trasforma C in A
   begin
     update lavorazioni set peso_tubolare_kg = 60 where rotolo_grezzo_id = (select id from rotoli_grezzi where n_prog = 'T5000') and kg_residui_dichiarati > 0;
-    raise exception 'ATTESO ERRORE check caso C';
+    raise exception 'ATTESO ERRORE (check del caso C)';
   exception when check_violation then null; end;
 
-  -- ufficio non modifica un grezzo in lavorazione (policy stato = grezzo): 0 righe toccate
-  update rotoli_grezzi set cliente = 'X' where n_prog = 'T5002' and stato = 'in_lavorazione';
-  assert (select cliente from rotoli_grezzi where n_prog = 'T5002') is distinct from 'X', 'policy grezzo';
+  -- ripartenza che punta il fermo di un'ALTRA lavorazione: l'ufficio può scrivere eventi anche su
+  -- lavorazioni non aperte, quindi qui l'errore arriva dal trigger e non dalla RLS
+  insert into eventi (lavorazione_id, tipo, causa_fermo, avvenuto_il) values (lav2, 'fermo', 'esterno', now() - interval '3 minutes') returning id into f_u;
+  begin
+    insert into eventi (lavorazione_id, tipo, fermo_id) values (lav, 'ripartenza', f_u);   -- lav è l'annullata T5002, f_u è di lav2
+    raise exception 'ATTESO ERRORE (ripartenza incrociata)';
+  exception when others then assert sqlerrm like '%altra lavorazione%', 'msg incrociata: ' || sqlerrm; end;
+  insert into eventi (lavorazione_id, tipo, fermo_id, metri_scarto) values (lav2, 'ripartenza', f_u, 100);
+
+  -- pulizia: la lavorazione aperta si annulla (il rollback finale farebbe comunque tutto)
+  perform annulla_lavorazione(lav2, op, 'pulizia del test', 0);
 end $$;
 
 -- ---------- ruolo_utente() null: respinto ----------
@@ -1630,7 +1764,7 @@ select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000
 do $$ begin
   begin
     perform annulla_lavorazione(gen_random_uuid(), gen_random_uuid(), 'x', 0);
-    raise exception 'ATTESO ERRORE non autorizzato';
+    raise exception 'ATTESO ERRORE (utente senza ruolo)';
   exception when others then assert sqlerrm = 'Non autorizzato', 'utente non mappato: ' || sqlerrm; end;
 end $$;
 
@@ -1699,17 +1833,20 @@ button.secondario { background: #e2e8f0; color: var(--testo); }
 
 - [ ] **Step 3: `js/db.js`**
 
-Prima calcola l'hash SRI della libreria pinnata:
-Run: `curl -sL https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.6/dist/umd/supabase.min.js | openssl dgst -sha384 -binary | openssl base64 -A`
-Annota il risultato: va in `index.html` come `integrity="sha384-<hash>"`.
+Prima calcola l'hash SRI della libreria pinnata, con un comando che **fallisce** se il file non esiste (un 404 darebbe un hash plausibile della pagina d'errore) e che non dipende da `openssl`:
+Run:
+```bash
+node -e "const h=require('crypto').createHash('sha384');fetch(process.argv[1]).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.arrayBuffer()}).then(b=>{if(b.byteLength<100000)throw new Error('file troppo piccolo: '+b.byteLength);h.update(Buffer.from(b));console.log('sha384-'+h.digest('base64'))})" https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.6/dist/umd/supabase.min.js
+```
+Expected: una riga `sha384-…` (44+ caratteri dopo il prefisso). Annotala: va in `index.html` come `integrity="…"`.
 
 ```js
 // ============================================================
 // db.js — l'unico file che conosce Supabase. Client, salva(), sessione.
-// La libreria è caricata come <script> UMD in ogni pagina (window.supabase).
+// La libreria è caricata come <script> UMD in ogni pagina (window.supabase), PRIMA del modulo.
 // ============================================================
-export const SUPABASE_URL = "https://<REF>.supabase.co";            // ref del progetto Overland Produzione (Task 7)
-export const SUPABASE_KEY = "<CHIAVE_PUBLISHABLE>";                 // da get_publishable_keys; pubblica per design
+const SUPABASE_URL = "https://<REF>.supabase.co";            // ref del progetto Overland Produzione (Task 7)
+const SUPABASE_KEY = "<CHIAVE_PUBLISHABLE>";                 // da get_publishable_keys; pubblica per design
 export const byId = (id) => document.getElementById(id);
 
 if (!window.supabase?.createClient) {
@@ -1740,11 +1877,14 @@ export async function salva(fn, { onStato = () => {} } = {}) {
   }
 }
 
-// Gli errori delle RPC arrivano già in italiano (spec §5.5); gli altri diventano una frase generica.
+// Gli errori delle RPC arrivano già in italiano (spec §5.5); i vincoli del DB parlano inglese e
+// vanno tradotti qui; tutto il resto diventa una frase generica.
 function messaggio(e) {
   const m = e?.message ?? String(e);
-  if (e?.code && /^P0001$/.test(e.code)) return m;               // raise exception nelle RPC
-  if (e?.code === "23514") return m;                              // check violation (messaggio del vincolo)
+  if (e?.code === "P0001") return m;                                                      // raise exception nelle RPC (italiano)
+  if (e?.code === "23505") return "Questo numero è già stato usato: controlla il numero progressivo.";   // unicità
+  if (e?.code === "23514") return "I dati inseriti non rispettano una regola del sistema: controlla pesi e residuo."; // check
+  if (e?.code === "42501") return "Operazione non consentita per questa utenza.";          // RLS / grant
   console.error(e);
   return "Qualcosa non ha funzionato, riprova; se continua avvisa l'ufficio.";
 }
@@ -1869,7 +2009,7 @@ Se `gh` è disponibile e autenticato: `gh repo create piattaforma-produzione --p
 
 - [ ] **Step 3: Controllo del sito pubblicato**
 
-Aprire nel pannello browser `https://<utente>.github.io/piattaforma-produzione/index.html?nocache=<timestamp>`: nessun errore in console; login con l'utenza `ufficio` (il committente digita la password nel pannello, mai in chat) → "Connesso come ufficio"; Esci; login `reparto` → "Connesso come reparto".
+Aprire nel pannello browser `https://<utente>.github.io/piattaforma-produzione/index.html` con ricarica forzata (Ctrl+Shift+R; Pages può servire la versione precedente fino a 10 minuti): nessun errore in console; login con l'utenza `ufficio` (il committente digita la password nel pannello, mai in chat) → "Connesso come ufficio"; Esci; login `reparto` → "Connesso come reparto".
 
 - [ ] **Step 4: Aggiorna `CLAUDE.md`** — ref del progetto, URL Pages, elenco tabelle/viste/RPC (copiato dai titoli delle sezioni a-e), le trappole: "mai rieseguire `000_setup.sql`", "`test_regole.sql` gira come authenticated", "`rotoli_grezzi` non è leggibile dal reparto: usare la vista", "`durata_min` e `modificato_*` le scrive il DB".
 
@@ -1904,7 +2044,39 @@ FASE 0: CHIUSA
 - Creazione dei due utenti Auth.
 ```
 
-- [ ] **Step 6: Commit finale della fase**
+- [ ] **Step 6: `RAPPORTO_fase-0.md`** (gitignorato; lo stesso testo va scritto per intero in chat al committente, che non apre i file)
+
+```markdown
+# Rapporto Fase 0 — Fondamenta — <data>
+
+COSA È STATO FATTO
+- Il database della piattaforma esiste: nove tabelle, tre viste, quattro funzioni con tutte le
+  regole dei rotoli (avvio, chiusura nei casi A/B/C, annullo, registrazione a posteriori).
+- Le regole sono state provate automaticamente: <N> test sul database e <M> test sulle formule,
+  tutti passati (compreso l'esempio del rotolo A5000 diviso in due giri).
+- La pagina di accesso è pubblicata su <URL>: entrando come "ufficio" o come "reparto" dice
+  con quale ruolo si è connessi. Nient'altro è ancora visibile: le schermate arrivano dalla Fase 1.
+- Dieci rotoli di collaudo e il catalogo dei difetti del manuale sono già caricati.
+
+COSA DEVI FARE TU
+1. URGENTE — Nella dashboard Supabase: Authentication → Providers → Email → spegnere
+   "Allow new users to sign up". Senza questo chiunque può crearsi un'utenza.
+2. Custodire le due password (ufficio e reparto). Quella del reparto andrà digitata una volta
+   sola sul tablet, quando arriverà la Fase 2.
+3. Verificare che GitHub Pro sia attivo e che il repository sia privato (Settings → General).
+
+COSTI
+- Progetto Supabase "Overland Produzione": <piano e costo mensile letti da get_cost al Task 7>.
+- GitHub Pro: 4 $/mese.
+
+COSA NON SONO RIUSCITO A FARE
+- <vuoto, oppure elenco; qui i dettagli tecnici sono ammessi>
+
+PROSSIMA FASE
+- Fase 1 — Magazzino e pianificazione. Nessuna fermata prima.
+```
+
+- [ ] **Step 7: Commit finale della fase**
 
 ```bash
 git add CLAUDE.md STATO_<data>.md
@@ -1918,7 +2090,7 @@ git push origin main
 
 **Spec coverage (Fase 0 secondo spec §6 e PIANO §3):** progetto Supabase → Task 7; `000_setup.sql` tabelle/viste/RPC/trigger/grant/RLS/realtime → Task 7-11; `seed_difetti`, `seed_collaudo` → Task 12; `comune.js` con le otto funzioni pure e test → Task 1-6; `test_regole.sql` verde come authenticated con l'esempio §2.7, casi A/B/C, tutte le guardie elencate in spec §5.6 punto 2 → Task 13; repo privato + Pages → Task 15; login e "connesso come" → Task 14-15; `test-dom-ids` → Task 14. Il test di coerenza JS↔DB (spec §5.6 punto 3) è coperto indirettamente: `test_regole.sql` e `test-comune.mjs` usano gli **stessi numeri** dell'esempio §2.7 (2.450, 302, 70, `/A`, `/B`) e la stessa terna di scostamenti; un confronto automatico via connettore arriva con la Fase 3, quando esistono controlli reali.
 
-**Scostamento dichiarato dallo spec:** `js/comune.js` non contiene il client Supabase né `salva()` (spec §5.2 li elencava lì): sono in `js/db.js`, perché `comune.js` deve importarsi in Node senza `window`. Una schermata, un file resta rispettato; da annotare nello STATO come "cosa non faccio".
+**Scostamenti dichiarati dallo spec:** (1) `js/comune.js` non contiene il client Supabase né `salva()` (spec §5.2 li elencava lì): sono in `js/db.js`, perché `comune.js` deve importarsi in Node senza `window`. (2) Esiste un `package.json` di una riga (`"type": "module"`), senza dipendenze: senza di esso Node ≥ 20 non importa `comune.js` come modulo ES. Nessuna toolchain, nessun `npm install`. (3) `registra_lavorazione_completa` rifiuta le ripartenze: la Fase 4 le farà aggiungere dall'ufficio dopo la registrazione. Tutti e tre da annotare nello STATO come "cosa non faccio / faccio diversamente".
 
 **Placeholder:** `<REF>`, `<CHIAVE_PUBLISHABLE>`, `<HASH_…>`, `<utente>`, `<data>` sono valori che nascono durante l'esecuzione (Task 7, 14, 15) e ogni step dice da dove prenderli. Nessun "TBD" di disegno.
 
