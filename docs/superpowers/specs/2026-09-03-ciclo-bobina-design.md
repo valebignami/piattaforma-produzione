@@ -542,7 +542,7 @@ Fermata obbligatoria dopo il Pilota. Il sotto-progetto 2 si progetta con i dati 
 | Numerazione proposta | massimo mai usato + 1 (scostamento dichiarato da procedure §3.3) |
 | Promemoria controllo | solo colore, 20 min |
 | Layout stampe | dalle procedure, aggiustato dopo la prima stampa |
-| Hosting | repo privato + GitHub Pages (Pro) |
+| Hosting | GitHub Pages. Repo privato (Pro) come obiettivo; **pubblico finché Pro non è attivo** (decisione 2026-09-03 sera): `docs/riferimenti/` e i seed con parametri di processo restano fuori dal repo |
 | ERP Nastri | accantonato |
 | Offline | no; ritentativo + `registra_lavorazione_completa` dall'ufficio |
 | Storico correzioni | no (§2.9) |
