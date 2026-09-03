@@ -3,3 +3,8 @@ RAPPORTO_*.md
 Backup app/
 *.tmp
 ~$*
+.playwright-mcp/
+# know-how aziendale: mai nel repo pubblico
+docs/riferimenti/
+sql/seed_schede.sql
+sql/seed_difetti.sql
