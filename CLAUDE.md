@@ -18,7 +18,7 @@ Nessun bundler, linter o dipendenza npm: `package.json` contiene solo `"type": "
 - Le regole di dominio stanno in Postgres: vincoli, trigger, viste, RPC in `sql/`.
   `js/comune.js` contiene solo funzioni pure; le tre duplicate (fuoriRange, codiciFigli,
   bilancioChiusura) sono dichiarate nello spec e coperte dal test di coerenza.
-- Progetto Supabase: `Overland Produzione` (ref: <da compilare al Task 7>). Nessuno staging.
+- Progetto Supabase: `Overland Produzione` (ref: `nbercxzpjflqfstwrryp`). Nessuno staging.
   Mai rieseguire una sezione di `000_setup.sql`: le correzioni sono migrazioni nuove.
 - `modificato_da/il` e `durata_min` le scrive il DB: mai dal client.
 - `rotoli_grezzi` non è leggibile dal reparto: il tablet usa la vista `rotoli_grezzi_reparto`.
