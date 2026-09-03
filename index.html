@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Piattaforma Produzione — Overland</title>
+  <link rel="stylesheet" href="css/base.css">
+  <!-- supabase.js (non .min.js): il file pubblicato dal pacchetto è già minificato e resta identico
+       byte per byte; il .min.js lo genera jsDelivr al volo e non è adatto all'integrity. -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.6/dist/umd/supabase.js"
+          integrity="sha384-SR76iDF5vfiuFuYEigF/LOTQIXTU5SrR3Ij29NELtBswNOxcSLM6iMr8OVRzUycq" crossorigin="anonymous"></script>
+</head>
+<body>
+  <main>
+    <h1>Piattaforma Produzione</h1>
+    <form id="form-login">
+      <label for="email">Email</label>
+      <input id="email" type="email" autocomplete="username" required>
+      <label for="password">Password</label>
+      <input id="password" type="password" autocomplete="current-password" required>
+      <p><button id="btn-login" type="submit">Entra</button></p>
+      <p id="messaggio" class="messaggio"></p>
+    </form>
+    <section id="connesso" hidden>
+      <p id="ruolo"></p>
+      <p><button id="btn-logout" class="secondario" type="button">Esci</button></p>
+    </section>
+  </main>
+  <script type="module" src="js/index.js"></script>
+</body>
+</html>
