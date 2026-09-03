@@ -3,7 +3,8 @@
 // Costanti e FUNZIONI PURE. Nessun import, nessun DOM, nessuna rete:
 // questo file gira identico nel browser e nei test Node.
 // Le tre regole duplicate col DB (fuoriRange, codiciFigli, bilancioChiusura)
-// sono dichiarate nello spec §2.6/§3.7 e coperte dal test di coerenza.
+// sono dichiarate nello spec §2.6/§3.7; il test di coerenza JS↔DB arriva con la
+// Fase 3, fino ad allora test-comune.mjs e test_regole.sql usano gli stessi numeri.
 // ============================================================
 
 export const SOGLIA_CONTROLLO_MIN = 20;   // minuti senza controllo → banner colorato (manuale: ogni 20')
