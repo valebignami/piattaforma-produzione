@@ -1422,22 +1422,38 @@ grant update (avvenuto_il, operatore_id, tipo, contametri, tipo_difetto_id, caus
 revoke all on lavorazioni_riepilogo, controlli_scostamenti from anon, authenticated;
 grant select on lavorazioni_riepilogo, controlli_scostamenti to authenticated;
 
--- ---------- Verifiche finali (sezione e) ----------
+```
+
+- [ ] **Step 2: Applica** — `apply_migration` (`name: "000e_rls_grant"`). Expected: nessun errore.
+
+- [ ] **Step 2b: Verifiche della sezione e, come migrazione separata** (`apply_migration`, `name: "000e_verifica"`): se un assert fosse scritto male, i permessi appena concessi restano acquisiti e si corregge solo l'assert.
+
+```sql
+-- Verifiche della sezione e. NB: information_schema.column_privileges ESPANDE i grant di tabella
+-- su ogni colonna, quindi le colonne riservate vanno legate alla loro tabella (tipi_difetto ha una
+-- colonna "codice" con grant di tabella legittimo).
 do $$ begin
   assert (select count(*) from pg_tables where schemaname = 'public' and rowsecurity) = 10, 'RLS non attiva su tutte le tabelle';
   assert not exists (select 1 from information_schema.column_privileges
                      where table_schema = 'public' and grantee = 'authenticated' and privilege_type in ('INSERT','UPDATE')
-                       and column_name in ('modificato_da','modificato_il','durata_min','stato','codice')), 'il client ha grant su colonne riservate';
+                       and (   column_name in ('modificato_da','modificato_il')
+                            or (table_name = 'eventi'          and column_name = 'durata_min')
+                            or (table_name = 'lavorazioni'     and column_name = 'stato')
+                            or (table_name = 'rotoli_grezzi'   and column_name = 'stato')
+                            or (table_name = 'rotoli_lavorati' and column_name in ('codice','lavorazione_id')))),
+         'il client ha grant su colonne riservate';
   -- le tre viste devono avere SOLO select per authenticated e niente per anon
   assert not exists (select 1 from information_schema.table_privileges
                      where table_schema = 'public' and table_name in ('rotoli_grezzi_reparto','lavorazioni_riepilogo','controlli_scostamenti')
                        and (grantee = 'anon' or (grantee = 'authenticated' and privilege_type <> 'SELECT'))), 'una vista è scrivibile o visibile ad anon';
   assert not exists (select 1 from information_schema.table_privileges
                      where table_schema = 'public' and grantee = 'authenticated' and privilege_type in ('TRUNCATE','REFERENCES','TRIGGER')), 'authenticated ha privilegi di tabella oltre il necessario';
+  assert not exists (select 1 from information_schema.table_privileges
+                     where table_schema = 'public' and grantee = 'authenticated' and privilege_type in ('INSERT','DELETE')
+                       and table_name in ('lavorazioni','rotoli_lavorati')), 'lavorazioni/rotoli_lavorati scrivibili fuori dalle RPC';
 end $$;
 ```
-
-- [ ] **Step 2: Applica** — `apply_migration` (`name: "000e_rls_grant"`). Expected: nessun errore, verifiche finali passate. Se l'assert sulle RLS conta 9, controlla `utenti_app` (deve avere RLS attiva dalla sezione a).
+Expected: nessun errore. Se l'assert sulle RLS conta 9, controlla `utenti_app` (deve avere RLS attiva dalla sezione a).
 
 - [ ] **Step 3: Appendi la sezione f — realtime, come migrazione separata**
 
@@ -1550,7 +1566,9 @@ set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000bbbb","role":"authenticated"}', true);
 
 do $$
-declare op uuid; sch uuid; gz uuid; gz2 uuid; lav uuid; lav2 uuid; codici text[]; f uuid; f2 uuid; n int; g rotoli_grezzi;
+-- NB: g è "record", non "rotoli_grezzi": qui si legge la VISTA (16 colonne, ordine diverso) e
+-- "select * into" assegna per posizione.
+declare op uuid; sch uuid; gz uuid; gz2 uuid; lav uuid; lav2 uuid; codici text[]; f uuid; f2 uuid; n int; g record;
 begin
   assert ruolo_utente() = 'reparto', 'ruolo reparto';
   select id into op from operatori where nome = 'Test Operatore';
@@ -1681,7 +1699,9 @@ end $$;
 -- ---------- Come UFFICIO ----------
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000aaaa","role":"authenticated"}', true);
 do $$
-declare op uuid; sch uuid; gz uuid; gz2 uuid; lav uuid; lav2 uuid; r jsonb; g rotoli_grezzi; n int; f_u uuid;
+-- NB: lav_ko è la variabile per gli avvii "usa e getta" dentro i blocchi exception: il rollback
+-- della sottotransazione cancella la riga ma NON la variabile, quindi lav non va riassegnata lì.
+declare op uuid; sch uuid; gz uuid; gz2 uuid; lav uuid; lav2 uuid; lav_ko uuid; r jsonb; g rotoli_grezzi; n int; f_u uuid;
 begin
   assert ruolo_utente() = 'ufficio', 'ruolo ufficio';
   select id into op from operatori where nome = 'Test Operatore';
@@ -1698,11 +1718,17 @@ begin
   assert (select stato from lavorazioni where id = lav) = 'annullata', 'annullata';
   assert (select contametri_fine - contametri_inizio from lavorazioni where id = lav) = 50, 'metri consumati derivabili';
   begin  -- metri oltre il rotolo
-    lav := avvia_lavorazione(gz, sch, op, 6000, 0, 0);
-    perform annulla_lavorazione(lav, op, 'prova', 99999);
+    lav_ko := avvia_lavorazione(gz, sch, op, 6000, 0, 0);
+    perform annulla_lavorazione(lav_ko, op, 'prova', 99999);
     raise exception 'ATTESO ERRORE (metri oltre il rotolo)';
   exception when others then assert sqlerrm like '%superano il rotolo%', 'msg: ' || sqlerrm; end;
-  -- (l'avvio dentro il blocco exception è stato annullato con l'errore: la linea è di nuovo libera)
+  -- (l'avvio dentro il blocco exception è stato annullato con l'errore: la linea è di nuovo libera;
+  --  lav resta l'annullata T5002)
+  assert (select stato from lavorazioni where id = lav) = 'annullata', 'lav deve essere ancora l''annullata';
+
+  -- controllo positivo della policy sul grezzo: un rotolo in stato "grezzo" SI modifica
+  update rotoli_grezzi set cliente = 'Cliente corretto' where id = gz;
+  assert (select cliente from rotoli_grezzi where id = gz) = 'Cliente corretto', 'l''ufficio deve poter modificare un grezzo';
 
   -- la linea viene occupata DAVVERO, fuori da ogni blocco exception
   insert into rotoli_grezzi (n_prog, spessore_mm, larghezza_mm, peso_bolla_kg) values ('T5005', 2, 1500, 6500) returning id into gz2;
