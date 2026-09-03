@@ -1,5 +1,9 @@
 # Fase 0 — Fondamenta: piano di implementazione
 
+> **Stato: APPROVATO** il 2026-09-03 dopo tre giri di revisione indipendente
+> (`docs/superpowers/reviews/2026-09-03-piano-fase-0*.md`). Le annotazioni non bloccanti del
+> giro 2 (punti 2-10) sono da tenere presenti in esecuzione.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Mettere in piedi database, regole, funzioni pure con test, login e pubblicazione della Piattaforma Produzione, così che le Fasi 1-4 costruiscano solo schermate.
@@ -2047,7 +2051,7 @@ Aprire nel pannello browser `https://<utente>.github.io/piattaforma-produzione/i
 FASE 0: CHIUSA
 
 ## Fatto
-- Progetto Supabase `Overland Produzione` (ref …), migrazioni 000a-000e, 001, 002 applicate il <data ora>.
+- Progetto Supabase `Overland Produzione` (ref …), migrazioni 000a, 000b, 000c, 000d, 000e, 000e_verifica, 000f, 001, 002 applicate il <data ora>.
 - `test_regole.sql`: TUTTI I TEST PASSATI il <data ora>.
 - `node --test tests/`: N test verdi.
 - Pagina di login pubblicata su <URL>; verificato "Connesso come ufficio" e "come reparto".
