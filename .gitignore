@@ -1,0 +1,5 @@
+.claude/
+RAPPORTO_*.md
+Backup app/
+*.tmp
+~$*
