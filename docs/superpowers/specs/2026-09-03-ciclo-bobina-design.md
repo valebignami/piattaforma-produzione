@@ -1,7 +1,7 @@
 # Piattaforma Produzione Overland — Sotto-progetto 1: Ciclo bobina
 
-**Data:** 2026-09-03 · **Revisione:** 3 (dopo i giri 1 e 2 della revisione indipendente,
-`docs/superpowers/reviews/`) · **Stato:** in attesa di conferma del giro 3
+**Data:** 2026-09-03 · **Revisione:** 4 (dopo i giri 1, 2 e 3 della revisione indipendente,
+`docs/superpowers/reviews/`) · **Stato:** in attesa di conferma finale
 **Committente e autore delle decisioni:** V. Bignami · **Perimetro:** Linea 1500 (Impiantone)
 
 ## 0. In una frase
@@ -82,7 +82,7 @@ nessun accesso via API.
 
 | Colonna | Note |
 |---|---|
-| `n_prog` | testo, unico, es. `A5000`. Lo digita l'ufficio; l'app propone **massimo numero mai usato con la stessa lettera + 1**. *Scostamento dichiarato* da procedure §3.3 ("ultimo numero attivo a magazzino"): con il vincolo di unicità la regola delle procedure proporrebbe numeri già usati |
+| `n_prog` | testo, unico, es. `A5000`. Lo digita l'ufficio; l'app propone **massimo numero mai usato con la stessa lettera + 1**, considerando solo i codici nel formato `lettera + cifre` (i `COLLAUDO-000x` sono ignorati). *Scostamento dichiarato* da procedure §3.3 ("ultimo numero attivo a magazzino"): con il vincolo di unicità la regola delle procedure proporrebbe numeri già usati |
 | `fornitore`, `rif_bolla` | testo; **non visibili al reparto** (§5.3) |
 | `cliente` | testo con autocompletamento; nessuna anagrafica |
 | `lega`, `finitura`, `spessore_mm`, `larghezza_mm` | dimensioni > 0 |
@@ -91,7 +91,7 @@ nessun accesso via API.
 | `data_arrivo`, `posizione`, `note`, `modificato_da`, `modificato_il` | |
 | `stato` | `grezzo` → `in_lavorazione` → `esaurito`; da `in_lavorazione` torna a `grezzo` (caso C o annullo) |
 | `kg_al_metro` | **generato**: `larghezza_mm * spessore_mm * 2.7 / 1000` (formula del manuale) |
-| `metri_stimati` | **generato**: `round(coalesce(kg_residui, peso_bolla_kg) / kg_al_metro)`, intero. Vale 0 per un esaurito |
+| `metri_stimati` | **generato**, `integer`: `round(coalesce(kg_residui, peso_bolla_kg) / (larghezza_mm * spessore_mm * 2.7 / 1000))::integer`. La formula è **ripetuta per esteso** perché Postgres non ammette una colonna generata definita su un'altra colonna generata. Vale 0 per un esaurito |
 
 Il **caso C** non crea un nuovo rotolo: è la stessa riga che torna `grezzo` con `kg_residui`
 aggiornati (procedure §8.3). Mentre il rotolo è `in_lavorazione` nessuno può modificarne
@@ -127,9 +127,15 @@ comparire due volte nella stessa settimana (lunedì e giovedì). "Già lavorata"
 | `contametri_fine`, `operatore_chiusura_id`, `chiusa_il` | |
 | `kg_residui_dichiarati` | il residuo dichiarato in **questa** chiusura (0 nei casi A e B); resta come storia |
 | `stato` | `aperta` → `chiusa` \| `annullata` |
+| `stampata_il` | quando l'ufficio ha premuto Stampa da "Ultime chiusure" (§4.3); null = da stampare |
 | `motivo_annullo`, `note`, `modificato_da`, `modificato_il` | |
 
-Vincolo: `create unique index … on lavorazioni (linea) where stato = 'aperta'`.
+Vincoli:
+- `create unique index … on lavorazioni (linea) where stato = 'aperta'`;
+- **invariante del caso C nel database, non solo nella RPC**:
+  `check (stato <> 'chiusa' or (kg_residui_dichiarati > 0) = (peso_tubolare_kg is null))` —
+  il tubolare null è il segno del caso C, e nessun update diretto può trasformare un caso C in
+  un caso A.
 
 **`lavorazioni_riepilogo`** — vista: ogni lavorazione con `kg_disponibili` = con imballo −
 imballo − tubolare (null nel caso C), `kg_figli` = Σ netto dei figli, `n_figli`, e
@@ -169,11 +175,16 @@ mentre il tratto da scartare è una sua parte: da tarare dopo il pilota), `descr
 
 **Fermo aperto** = evento `fermo` senza alcuna `ripartenza` che lo punti. Unica definizione.
 - `create unique index on eventi (fermo_id) where fermo_id is not null`;
-- trigger `after insert or update on eventi`: se la riga è una ripartenza, verifica che
-  `fermo_id` punti un evento `tipo = 'fermo'` della **stessa** lavorazione con `avvenuto_il`
-  precedente, e scrive `durata_min` sul fermo; se la riga è un fermo che ha una ripartenza,
-  ricalcola `durata_min` dalla sua ripartenza. Così una correzione d'ufficio su uno qualunque
-  dei due orari aggiorna la durata.
+- **due trigger distinti**, per evitare che un trigger si richiami da solo:
+  1. `before insert or update on eventi`, **solo se `new.tipo = 'fermo'`**: se esiste una
+     ripartenza che lo punta, assegna `new.durata_min` dalla sua `avvenuto_il` (assegnamento su
+     `new`, nessun `update`: non innesca nulla);
+  2. `after insert or update on eventi`, **solo se `new.tipo = 'ripartenza'`**: verifica che
+     `fermo_id` punti un evento `tipo = 'fermo'` della **stessa** lavorazione con `avvenuto_il`
+     precedente ("La ripartenza non può precedere il fermo"), poi `update eventi set durata_min
+     = … where id = new.fermo_id` — che fa scattare il trigger 1 sulla riga del fermo, una volta
+     sola, senza ricorsione perché il trigger 2 non reagisce alle righe di tipo `fermo`.
+  Così una correzione d'ufficio su uno qualunque dei due orari aggiorna la durata.
 
 ### 2.6 La vista degli scostamenti
 
@@ -228,16 +239,27 @@ p_figli jsonb, p_kg_residui default 0, p_chiusa_il default now())`**
 **`annulla_lavorazione(p_lavorazione_id, p_operatore_id, p_motivo, p_metri_scarto default 0)`**
 - lavorazione `aperta`; `p_motivo` obbligatorio; **nessun fermo aperto** (stessa guardia);
 - controlli ed eventi **restano**;
-- lavorazione → `annullata`; grezzo → `grezzo`; se `p_metri_scarto > 0`:
-  `kg_residui = coalesce(kg_residui, peso_bolla_kg) − p_metri_scarto × kg_al_metro` (il nastro
-  consumato in un avvio fallito non torna a magazzino).
+- `0 ≤ p_metri_scarto ≤ metri_stimati` del grezzo ("I metri consumati superano il rotolo");
+- lavorazione → `annullata` con `contametri_fine = contametri_inizio + p_metri_scarto` (i
+  metri consumati restano derivabili come per ogni altra lavorazione); grezzo → `grezzo`; se
+  `p_metri_scarto > 0`: `kg_residui = coalesce(kg_residui, peso_bolla_kg) − p_metri_scarto ×
+  kg_al_metro` (il nastro consumato in un avvio fallito non torna a magazzino).
 
-**`registra_lavorazione_completa(…)`** — riservata all'ufficio (`ruolo_utente() = 'ufficio'`,
-altrimenti "Non autorizzato"). Riceve in un solo colpo i parametri di avvio, l'elenco dei
-controlli e degli eventi, e i parametri di chiusura, e crea la lavorazione **già `chiusa`**
-con i suoi figli in un'unica transazione, con le stesse guardie di avvio e chiusura ma
-**senza** passare dallo stato `aperta`: così non urta l'indice unico mentre in linea gira il
-rotolo successivo. È la strada quando la rete è mancata e il turno è finito su carta (§4.4).
+**`registra_lavorazione_completa(p_rotolo_grezzo_id, p_scheda_id, p_operatore_avvio_id,
+p_avviata_il, p_peso_con_imballo, p_peso_imballo, p_contametri_inizio, p_controlli jsonb,
+p_eventi jsonb, p_operatore_chiusura_id, p_chiusa_il, p_peso_tubolare, p_contametri_fine,
+p_figli jsonb, p_kg_residui default 0, p_note default null)`** — riservata all'ufficio
+(`ruolo_utente() = 'ufficio'`, altrimenti "Non autorizzato"). Crea la lavorazione **già
+`chiusa`** con controlli, eventi e figli in un'unica transazione, con le stesse guardie sui
+pesi, sui figli, sul bilancio e sui codici di §2.7, ma **senza** passare dallo stato `aperta`:
+così non urta l'indice unico mentre in linea gira il rotolo successivo. Sul grezzo: se è ancora
+`grezzo`, ne aggiorna stato e `kg_residui` come farebbe `chiudi_lavorazione`; se nel frattempo
+è andato avanti (`in_lavorazione` o `esaurito`), registra comunque la lavorazione e i figli
+**senza toccare** stato e `kg_residui`, e restituisce un avviso che la UI mostra ("Il rotolo
+è già stato ripreso: controlla i kg residui a magazzino"). I codici `/A`, `/B` seguono la
+regola di §2.7 sull'insieme dei figli già esistenti del grezzo, qualunque sia l'ordine
+cronologico in cui le lavorazioni sono state registrate. È la strada quando la rete è mancata e
+il turno è finito su carta (§4.4).
 
 La **ripartenza** è un insert in `eventi` (tipo `ripartenza`, `fermo_id`, `metri_scarto`).
 
@@ -370,9 +392,10 @@ scheda prevista da elenco compatibile; ▲▼; righe lavorate barrate.
 ### 4.3 Live
 Realtime, sola lettura: riquadro della linea (stato, rotolo, scheda, operatore, avvio, metri,
 ultimo controllo con fuori range in rosso, fermo aperto); nastro cronologico della giornata;
-**"Ultime chiusure"**: le lavorazioni chiuse negli ultimi 7 giorni con un tasto **Stampa** per
-ogni Scheda Rotolo e, nei casi C, per la **scheda del residuo** — è qui che l'ufficio stampa ciò
-che il tablet ha chiuso.
+**"Ultime chiusure"**: le lavorazioni chiuse negli ultimi 7 giorni, **le non ancora stampate
+in cima e in evidenza** (`stampata_il` null), con un tasto **Stampa** che apre le Schede
+Rotolo dei figli e, nei casi C, la **scheda del residuo**, e scrive `stampata_il`. È qui che
+l'ufficio stampa ciò che il tablet ha chiuso; poi porta i fogli in reparto (§6).
 
 ### 4.4 Lavorazioni
 Lista con filtri. Dettaglio = **Scheda di Produzione digitale** (da `lavorazioni_riepilogo`):
@@ -435,10 +458,10 @@ protegge le **righe**, i grant le **colonne**: servono entrambi.
 |---|---|---|---|---|
 | operatori, schede_lavorazione, tipi_difetto | autenticati | ufficio | ufficio | ufficio |
 | rotoli_grezzi | **solo ufficio** | ufficio | ufficio, policy `using (stato = 'grezzo')`, grant su anagrafica + `kg_residui` (mai `stato`) | ufficio, solo `grezzo` senza lavorazioni |
-| **rotoli_grezzi_reparto** (vista) | **autenticati** (`grant select`) | — | — | — |
-| lavorazioni_riepilogo, controlli_scostamenti (viste, `security_invoker = true`) | autenticati | — | — | — |
+| **rotoli_grezzi_reparto** (vista, `security_invoker = false`) | **autenticati** (`grant select`) | — | — | — |
+| lavorazioni_riepilogo, controlli_scostamenti (viste, `security_invoker = true`) | autenticati (`grant select`) | — | — | — |
 | pianificazione | autenticati | ufficio | ufficio | ufficio |
-| lavorazioni | autenticati | **solo RPC** | ufficio, grant su `note, peso_con_imballo_kg, peso_imballo_kg, peso_tubolare_kg, contametri_inizio, contametri_fine` | nessuno |
+| lavorazioni | autenticati | **solo RPC** | ufficio, **policy `using (stato = 'chiusa')`** (le correzioni ai pesi hanno senso dopo la chiusura, non durante il turno), grant su `note, stampata_il, peso_con_imballo_kg, peso_imballo_kg, peso_tubolare_kg, contametri_inizio, contametri_fine`; il `check` di §2.4 impedisce di trasformare un caso C in un caso A | nessuno |
 | controlli, eventi | autenticati | ufficio; reparto `with check (lavorazione aperta)` | ufficio; reparto solo se lavorazione aperta | nessuno |
 | rotoli_lavorati | autenticati | **solo RPC** | ufficio, grant su `cliente, film, tipo_film, annotazioni_cliente, metri, peso_lordo_kg, peso_tubolare_kg` | nessuno |
 | utenti_app | nessuno via API | — | — | — |
@@ -489,9 +512,9 @@ ciclo completo ne consuma uno e l'Addestramento ne prevede uno per operatore.
 | **1 — Magazzino e pianificazione** | Magazzino con stampa grezzo; Pianificazione; Impostazioni | l'ufficio inserisce i grezzi e compone la settimana | — |
 | **2 — Avvio da tablet** | `importa_schede.py` + `seed_schede.sql`; hub; operatore; Avvia rotolo; Annulla avvio; Live in lettura | **le ~60 schede sono in tabella e tre a campione coincidono con l'Excel**; l'operatore avvia e annulla; l'ufficio vede | affiancamento il primo turno; A4 plastificato accanto al tablet |
 | **3 — Controlli ed eventi** | Controllo; Evento; Fermo/Ripartenza con scarto; scostamenti in Live; capoturno | il turno si registra dal tablet | affiancamento; canale per i problemi (chi risponde, entro quando) |
-| **4 — Chiusura e stampe** | Chiudi rotolo A/B/C; `stampa.html` (tre tipi); Ultime chiusure in Live; Lavorazioni con correzioni e `registra_lavorazione_completa`; Rotoli lavorati | ciclo completo; schede stampate dall'ufficio | prima stampa confrontata con la carta insieme agli operatori |
+| **4 — Chiusura e stampe** | Chiudi rotolo A/B/C; `stampa.html` (tre tipi); Ultime chiusure in Live; Lavorazioni con correzioni e `registra_lavorazione_completa`; Rotoli lavorati | ciclo completo; schede stampate dall'ufficio | prima stampa confrontata con la carta insieme agli operatori; **si concorda il giro fisico**: a ogni chiusura l'ufficio stampa da Ultime chiusure e porta le schede in reparto, l'operatore le mette in cartelletta prima che il rotolo lasci l'avvolgitore |
 | **Addestramento** | mezza giornata, tutti gli operatori, un rotolo di collaudo ciascuno; decisione scritta su chi non vuole usarlo | tutti hanno fatto un ciclo completo | — |
-| **Pilota** | due operatori nominati, quattro settimane, **stop carta** dalla data X | criterio §1 | l'ufficio guarda Live ogni giorno e stampa le schede |
+| **Pilota** | due operatori nominati, quattro settimane, **stop carta** dalla data X | criterio §1 | l'ufficio guarda Live ogni giorno, stampa le schede da Ultime chiusure e le porta al rotolo |
 
 Fermata obbligatoria dopo il Pilota. Il sotto-progetto 2 si progetta con i dati del pilota.
 
