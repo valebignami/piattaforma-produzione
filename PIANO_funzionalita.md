@@ -28,7 +28,7 @@
 | Tema | Decisione |
 |---|---|
 | ERP Nastri | accantonato; nessun riuso di codice o DB |
-| Hosting | repo privato + GitHub Pages (GitHub Pro) |
+| Hosting | GitHub Pages. Repo **pubblico per ora** (GitHub Pro non attivo, decisione 2026-09-03 sera): `docs/riferimenti/`, `sql/seed_schede.sql`, `sql/seed_difetti.sql` restano fuori dal repo via `.gitignore`. Privato appena Pro è attivo |
 | Progetto Supabase | nuovo e dedicato: `Overland Produzione`, eu-central-1 |
 | Tablet e Wi-Fi | esistono già; niente offline |
 | Pesi del grezzo | con imballo (> 0), imballo (≥ 0), tubolare (≥ 0, **null nel caso C**) |

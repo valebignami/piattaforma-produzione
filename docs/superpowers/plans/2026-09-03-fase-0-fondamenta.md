@@ -28,6 +28,7 @@
 - `git add` sempre di file espliciti, mai `.`/`-A`; `git push` solo al Task 15; commit in italiano.
 - Backup prima di ogni migrazione (spec §5.4): in Fase 0 **un solo backup all'inizio** (Task 7, Step 3), perché il database nasce vuoto e nessuna delle migrazioni 000a-002 tocca dati preesistenti; dalla Fase 1 il backup torna a essere per migrazione.
 - **Ogni sezione SQL ha in testa la propria guardia** "già applicata → errore": nessuna sezione di `000_setup.sql` si riesegue mai; le correzioni sono nuove migrazioni `003_fix_<voce>.sql`.
+- **Repo PUBBLICO per ora** (decisione del committente 2026-09-03 sera: GitHub Pro non ancora attivo; si passa a privato appena lo sarà). Quindi **fuori dal repo, via `.gitignore`**: `docs/riferimenti/` (manuale e procedure), `sql/seed_schede.sql` e `sql/seed_difetti.sql` (parametri di processo e know-how del manuale). Restano pubblici codice, schema, RPC, policy, spec e piani: descrivono l'app, non il processo. La chiave publishable è pubblica per design. I file ignorati vivono nella cartella locale (sincronizzata da OneDrive) e vanno citati nello STATO come "non nel repo".
 - Progetto Supabase: **`Overland Produzione`** (eu-central-1). Prima di ogni scrittura verificare con `get_project`/`list_projects` che il ref sia quello creato al Task 7; mai scrivere su `tbaagbngpxibllftsgoh` (HR) né su `cqdmfhdcdvaezmexzxrq` (Scadenziario).
 
 ---
@@ -72,7 +73,7 @@ Expected: working tree pulito; l'ultimo commit contiene il piano della Fase 0 (`
 
 - [ ] **Step 2: Completa `.gitignore`**
 
-Contenuto finale del file:
+Contenuto finale del file (il repo è pubblico: i documenti di riferimento e i seed con i parametri di processo restano fuori):
 ```
 .claude/
 RAPPORTO_*.md
@@ -80,7 +81,16 @@ Backup app/
 *.tmp
 ~$*
 .playwright-mcp/
+# know-how aziendale: mai nel repo pubblico
+docs/riferimenti/
+sql/seed_schede.sql
+sql/seed_difetti.sql
 ```
+Poi togli dal tracciamento i tre `.docx` già committati al primo commit (restano sul disco):
+```bash
+git rm -r --cached docs/riferimenti
+```
+Nota: la storia git conserva i commit precedenti con i `.docx`. Prima del primo `push` (Task 15) si riscrive la storia una volta sola, a repo ancora locale: `git filter-repo --path docs/riferimenti --invert-paths` se disponibile, altrimenti si ricrea il repo da zero con `git init` + un unico commit dello stato attuale (`docs/riferimenti/` già ignorata). Il Task 15 lo ricorda.
 
 - [ ] **Step 3: Crea `.claude/launch.json`**
 
@@ -144,7 +154,7 @@ Vedi il piano della Fase 0, sezione "Struttura dei file".
 Run:
 ```bash
 git add .gitignore CLAUDE.md package.json
-git commit -m "chore: struttura del repo, CLAUDE.md, package.json type module, gitignore"
+git commit -m "chore: struttura del repo, CLAUDE.md, package.json type module, gitignore (riferimenti e seed fuori dal repo)"
 ```
 (Le cartelle `css/`, `js/`, `sql/`, `tests/` nascono con i primi file veri nei task seguenti.)
 
@@ -1533,7 +1543,9 @@ on conflict (n_prog) do nothing;
 
 - [ ] **Step 3: Applica entrambi** — `apply_migration` (`name: "001_seed_difetti"`) e (`name: "002_seed_collaudo"`). Verifica: `select count(*) from tipi_difetto` → 10; `select count(*), min(metri_stimati) from rotoli_grezzi where n_prog like 'COLLAUDO%'` → 10, 802.
 
-- [ ] **Step 4: Commit** — `git add sql/seed_difetti.sql sql/seed_collaudo.sql && git commit -m "feat(sql): seed catalogo difetti e rotoli di collaudo"`
+- [ ] **Step 4: Commit** — solo il seed di collaudo; `seed_difetti.sql` è gitignorato (know-how del manuale, repo pubblico) e resta nella cartella locale:
+`git add sql/seed_collaudo.sql && git commit -m "feat(sql): seed rotoli di collaudo"`
+Verifica: `git status --short sql/` non deve mostrare `seed_difetti.sql` (ignorato).
 
 ---
 
@@ -2027,15 +2039,18 @@ select u.email, a.ruolo from auth.users u join utenti_app a on a.uid = u.id;
 ```
 Expected: due righe. Se il committente preferisce altri indirizzi, usare quelli e annotarli nello STATO. **Disattivare la registrazione libera**: Authentication → Providers → Email → *Allow new users to sign up* = OFF (azione del committente, va per prima nel rapporto con la parola URGENTE).
 
-- [ ] **Step 2: Repo privato e Pages** (committente, con GitHub Pro attivo)
+- [ ] **Step 2: Repo GitHub e Pages** (committente; **pubblico per ora**, privato appena GitHub Pro sarà attivo)
 
-Su github.com: **New repository** → nome `piattaforma-produzione`, **Private**, senza README. Poi in locale:
+Prima del primo push, **verifica che la storia non contenga know-how**: `git log --all --name-only --format= | sort -u | grep -E "riferimenti|seed_schede|seed_difetti"` deve essere vuoto. Se non lo è (i tre `.docx` sono nel primo commit), riscrivi la storia una volta sola, a repo ancora locale: `git filter-repo --path docs/riferimenti --invert-paths --force`; se `filter-repo` non è installato, ricrea il repo: `rm -rf .git && git init -b main && git add -A && git commit -m "Piattaforma Produzione — Fase 0"` (i file ignorati non entrano). Ripeti il `grep`: vuoto.
+
+Su github.com: **New repository** → nome `piattaforma-produzione`, **Public**, senza README. Poi in locale:
 ```bash
 git remote add origin https://github.com/<utente>/piattaforma-produzione.git
 git push -u origin main
 ```
 Su GitHub: Settings → Pages → Source: *Deploy from a branch* → `main` / `/ (root)` → Save. Attendere 1-2 minuti: l'URL è `https://<utente>.github.io/piattaforma-produzione/`. Annotarlo in `CLAUDE.md`.
-Se `gh` è disponibile e autenticato: `gh repo create piattaforma-produzione --private --source=. --remote=origin --push`.
+Se `gh` è disponibile e autenticato: `gh repo create piattaforma-produzione --public --source=. --remote=origin --push`.
+Quando GitHub Pro sarà attivo: Settings → General → Danger Zone → *Change visibility* → Private; Pages continua a funzionare.
 
 - [ ] **Step 3: Controllo del sito pubblicato**
 
@@ -2093,7 +2108,9 @@ COSA DEVI FARE TU
    "Allow new users to sign up". Senza questo chiunque può crearsi un'utenza.
 2. Custodire le due password (ufficio e reparto). Quella del reparto andrà digitata una volta
    sola sul tablet, quando arriverà la Fase 2.
-3. Verificare che GitHub Pro sia attivo e che il repository sia privato (Settings → General).
+3. Il repository è pubblico: contiene solo il codice dell'app, non il manuale, le procedure né i
+   parametri delle schede (che restano nella tua cartella). Quando attiverai GitHub Pro, si rende
+   privato con un click (Settings → General → Change visibility).
 
 COSTI
 - Progetto Supabase "Overland Produzione": <piano e costo mensile letti da get_cost al Task 7>.
