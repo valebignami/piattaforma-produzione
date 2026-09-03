@@ -1,7 +1,8 @@
 # Piattaforma Produzione Overland — Sotto-progetto 1: Ciclo bobina
 
-**Data:** 2026-09-03 · **Revisione:** 4 (dopo i giri 1, 2 e 3 della revisione indipendente,
-`docs/superpowers/reviews/`) · **Stato:** in attesa di conferma finale
+**Data:** 2026-09-03 · **Revisione:** 4 · **Stato: APPROVATO** — quattro giri di revisione
+indipendente (`docs/superpowers/reviews/`), verdetto finale "nessun bloccante". Le cinque
+annotazioni non bloccanti del giro 4 vanno recepite nel piano di implementazione.
 **Committente e autore delle decisioni:** V. Bignami · **Perimetro:** Linea 1500 (Impiantone)
 
 ## 0. In una frase
@@ -125,7 +126,7 @@ comparire due volte nella stessa settimana (lunedì e giovedì). "Già lavorata"
 | `peso_con_imballo_kg` (> 0), `peso_imballo_kg` (**≥ 0**, < con imballo), `contametri_inizio` | |
 | `peso_tubolare_kg` | alla chiusura; **≥ 0** ("senza tubolare" = 0); **null nel caso C** |
 | `contametri_fine`, `operatore_chiusura_id`, `chiusa_il` | |
-| `kg_residui_dichiarati` | il residuo dichiarato in **questa** chiusura (0 nei casi A e B); resta come storia |
+| `kg_residui_dichiarati` | `not null default 0`: il residuo dichiarato in **questa** chiusura (0 nei casi A e B); resta come storia |
 | `stato` | `aperta` → `chiusa` \| `annullata` |
 | `stampata_il` | quando l'ufficio ha premuto Stampa da "Ultime chiusure" (§4.3); null = da stampare |
 | `motivo_annullo`, `note`, `modificato_da`, `modificato_il` | |
