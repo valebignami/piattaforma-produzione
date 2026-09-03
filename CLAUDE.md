@@ -17,7 +17,9 @@ Nessun bundler, linter o dipendenza npm: `package.json` contiene solo `"type": "
 - `git push` su `main` = produzione (GitHub Pages, repo privato). Solo come passo esplicito.
 - Le regole di dominio stanno in Postgres: vincoli, trigger, viste, RPC in `sql/`.
   `js/comune.js` contiene solo funzioni pure; le tre duplicate (fuoriRange, codiciFigli,
-  bilancioChiusura) sono dichiarate nello spec e coperte dal test di coerenza.
+  bilancioChiusura) sono dichiarate nello spec. Il test di coerenza JS↔DB arriva con la Fase 3
+  (spec §5.6 punto 3); fino ad allora `test-comune.mjs` e `test_regole.sql` usano gli stessi
+  numeri dell'esempio §2.7.
 - Progetto Supabase: `Overland Produzione` (ref: `nbercxzpjflqfstwrryp`). Nessuno staging.
   Mai rieseguire una sezione di `000_setup.sql`: le correzioni sono migrazioni nuove.
 - `modificato_da/il` e `durata_min` le scrive il DB: mai dal client.
