@@ -22,7 +22,8 @@ Nessun bundler, linter o dipendenza npm: `package.json` contiene solo `"type": "
 - Repo: https://github.com/valebignami/piattaforma-produzione (pubblico finché GitHub Pro non
   è attivo). Pages: https://valebignami.github.io/piattaforma-produzione/
   Pagine: `/index.html` (login), `/ufficio.html` (ufficio, dalla Fase 1),
-  `/stampa.html?tipo=grezzo&n_prog=…` (scheda del grezzo). `index.html` non rimanda a `ufficio.html`.
+  `/reparto.html` (tablet del reparto, dalla Fase 2),
+  `/stampa.html?tipo=grezzo&n_prog=…` (scheda del grezzo). `index.html` non rimanda alle altre.
 - Utenti Auth: `ufficio@overland-ocm.it` (ruolo ufficio), `reparto@overland-ocm.it` (ruolo
   reparto), mappati in `utenti_app`. Registrazione libera spenta.
 - Backup fuori dal repo: `Desktop\Overland New\12_Progetti e Tecnica\Piattaforma Produzione\Backup app\`.
@@ -64,6 +65,19 @@ Nessun bundler, linter o dipendenza npm: `package.json` contiene solo `"type": "
 - Know-how fuori dal repo (gitignorato, solo nella cartella locale): `docs/riferimenti/`,
   `sql/seed_schede.sql`, `sql/seed_difetti.sql`. Prima di ogni push:
   `git ls-files | grep -E "riferimenti|seed_schede|seed_difetti"` deve essere vuoto.
+- **Nessun parametro di processo nei file tracciati**, nemmeno negli esempi: temperature,
+  tolleranze, correnti, velocità e nomi di prodotti chimici stanno solo nel Word di partenza, in
+  `sql/seed_schede.sql` e nel database. Nei documenti si usano segnaposto (`N`, `A-B`, `min N`);
+  nei test si usano numeri inventati. Vale anche per le spec di fase e per i file di revisione.
+- Il **reparto** legge il grezzo solo dalla vista `rotoli_grezzi_reparto`, con interrogazioni
+  esplicite: mai un `select` annidato da `pianificazione` o `lavorazioni`, perché la chiave
+  esterna punta alla tabella e lì il reparto non ha righe.
+- Sul tablet non esistono `<select>`: gli elenchi sono bottoni (spec §3.1).
+- `aggiorna()` delle shell confronta e riscrive `statoPrecedente` **attaccati**, prima di
+  qualunque attesa: al caricamento parte due volte (una da sola, una da `onAuthStateChange`, che
+  emette subito la sessione iniziale) e altrimenti disegna tutto doppio.
+- Le schede di lavorazione sono 51 ma i nomi distinti sono 10: nelle liste si usa
+  `etichettaScheda`, che aggiunge micron e misure, altrimenti non si distinguono.
 
 ## Schema (Fase 0)
 - Tabelle: `utenti_app`, `operatori`, `schede_lavorazione`, `tipi_difetto`, `rotoli_grezzi`,
@@ -75,17 +89,26 @@ Nessun bundler, linter o dipendenza npm: `package.json` contiene solo `"type": "
   `_codici_figli`, `_controlla_figli_e_bilancio`, `_inserisci_figli`; RPC `avvia_lavorazione`,
   `chiudi_lavorazione`, `annulla_lavorazione`, `registra_lavorazione_completa`.
 - Realtime: `lavorazioni`, `controlli`, `eventi`.
-- Seed: 10 tipi di difetto (`seed_difetti.sql`, non nel repo), 10 rotoli `COLLAUDO-0001…0010`.
+- Seed: 10 tipi di difetto (`seed_difetti.sql`, non nel repo), 10 rotoli `COLLAUDO-0001…0010`,
+  51 schede di lavorazione (`seed_schede.sql`, non nel repo, migrazione `004_seed_schede` della
+  Fase 2; generato da `tools/importa_schede.py`, non si modifica a mano).
 
 ## Struttura
 ```
-index.html  ufficio.html  stampa.html
-css/base.css  css/ufficio.css  css/stampa.css
-js/comune.js  js/db.js  js/index.js  js/ufficio.js  js/stampa.js
-js/ufficio/magazzino.js  js/ufficio/pianificazione.js  js/ufficio/impostazioni.js
+index.html  ufficio.html  reparto.html  stampa.html
+css/base.css  css/ufficio.css  css/reparto.css  css/stampa.css
+js/comune.js  js/db.js  js/index.js  js/ufficio.js  js/reparto.js  js/stampa.js
+js/ufficio/magazzino.js  js/ufficio/pianificazione.js  js/ufficio/live.js  js/ufficio/impostazioni.js
+js/reparto/hub.js  js/reparto/avvio.js
+tools/importa_schede.py
 sql/000_setup.sql  sql/003_…  sql/seed_collaudo.sql  sql/test_regole.sql
 tests/test-comune.mjs  tests/test-dom-ids.mjs
 docs/superpowers/{specs,plans,reviews}/   STATO_*.md   PIANO_funzionalita.md
 ```
-Ogni scheda dell'ufficio è un modulo con una sola funzione `mostra(ctx)`; `js/ufficio.js` è la
-shell (sessione, ruolo, schede, interruttore collaudo). La Fase 1 non ha aggiunto migrazioni.
+Ogni scheda dell'ufficio e ogni schermata del reparto è un modulo con una sola funzione
+`mostra(ctx)`; `js/ufficio.js` e `js/reparto.js` sono le shell (sessione, ruolo, schede o
+schermate). La Fase 1 non ha aggiunto migrazioni; la Fase 2 ha aggiunto solo il seed delle
+schede, senza toccare lo schema.
+
+`tools/importa_schede.py` è l'unico programma del repo che non gira con `node`: serve Python e
+`python-docx`, si esegue a mano e riconosce i formati delle celle, non un elenco di valori.
