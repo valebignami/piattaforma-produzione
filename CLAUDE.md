@@ -21,6 +21,8 @@ Nessun bundler, linter o dipendenza npm: `package.json` contiene solo `"type": "
   dal 2026-09-03 per liberare il posto gratuito), `ftwngogpqxzjmylxziwm` (erp-nastri).
 - Repo: https://github.com/valebignami/piattaforma-produzione (pubblico finché GitHub Pro non
   è attivo). Pages: https://valebignami.github.io/piattaforma-produzione/
+  Pagine: `/index.html` (login), `/ufficio.html` (ufficio, dalla Fase 1),
+  `/stampa.html?tipo=grezzo&n_prog=…` (scheda del grezzo). `index.html` non rimanda a `ufficio.html`.
 - Utenti Auth: `ufficio@overland-ocm.it` (ruolo ufficio), `reparto@overland-ocm.it` (ruolo
   reparto), mappati in `utenti_app`. Registrazione libera spenta.
 - Backup fuori dal repo: `Desktop\Overland New\12_Progetti e Tecnica\Piattaforma Produzione\Backup app\`.
@@ -42,6 +44,20 @@ Nessun bundler, linter o dipendenza npm: `package.json` contiene solo `"type": "
   (senza `fornitore` e `rif_bolla`). Nessuna stampa dal tablet.
 - Le `note` di una lavorazione si scrivono solo su lavorazioni `chiuse`; per le annullate il
   posto è `motivo_annullo`.
+- Le date: mai `toISOString()` né `slice(0,10)` su un timestamp — darebbero il giorno UTC, cioè
+  il giorno prima per tutto ciò che accade dopo le 22. Si usano `dataBreveItaliana`,
+  `dataLungaItaliana`, `lunediDellaSettimana`, `settimanaSpostata` di `comune.js`, che lavorano
+  sui componenti locali; la colonna `settimana` viaggia come stringa `AAAA-MM-GG`.
+- Ogni lettura che deve essere completa (l'esportazione di Impostazioni) va paginata con
+  `.range()`: PostgREST si ferma a 1000 righe e tronca **senza errore**.
+- Un campo vuoto di un modulo si invia come `null`, mai come stringa vuota. Per `kg_residui`
+  vuoto = mai lavorato, 0 = esaurito.
+- `pianificazione` ha `unique (settimana, posizione)` e PostgREST non ha transazioni: lo scambio
+  ▲▼ è in tre passi su una posizione di appoggio negativa, più bassa di ogni posizione in uso.
+- L'interruttore "mostra collaudo" vale per l'elenco del magazzino e per i grezzi disponibili;
+  **non** per la proposta di `n_prog`, la sequenza della settimana e l'esportazione.
+- Non esiste (e non va aggiunto senza che una fase lo preveda) un tasto per cancellare un rotolo
+  grezzo: un rotolo sbagliato si corregge con Modifica finché è `grezzo`.
 - `sql/test_regole.sql` gira come `authenticated` con `request.jwt.claims` impostato, in
   `begin … rollback`: l'unico risultato atteso è `TUTTI I TEST PASSATI`.
 - Niente cache-buster: Pages serve con max-age=600.
@@ -63,8 +79,13 @@ Nessun bundler, linter o dipendenza npm: `package.json` contiene solo `"type": "
 
 ## Struttura
 ```
-index.html  css/base.css  js/comune.js  js/db.js  js/index.js
+index.html  ufficio.html  stampa.html
+css/base.css  css/ufficio.css  css/stampa.css
+js/comune.js  js/db.js  js/index.js  js/ufficio.js  js/stampa.js
+js/ufficio/magazzino.js  js/ufficio/pianificazione.js  js/ufficio/impostazioni.js
 sql/000_setup.sql  sql/003_…  sql/seed_collaudo.sql  sql/test_regole.sql
 tests/test-comune.mjs  tests/test-dom-ids.mjs
 docs/superpowers/{specs,plans,reviews}/   STATO_*.md   PIANO_funzionalita.md
 ```
+Ogni scheda dell'ufficio è un modulo con una sola funzione `mostra(ctx)`; `js/ufficio.js` è la
+shell (sessione, ruolo, schede, interruttore collaudo). La Fase 1 non ha aggiunto migrazioni.
