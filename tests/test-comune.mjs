@@ -355,3 +355,12 @@ test("ragioneFuori: dice a parole perché un campo è fuori riferimento", () => 
   assert.equal(c.ragioneFuori(trova("contametri"), 999, RIF_SAT), "");
   assert.equal(c.ragioneFuori(trova("temp_ossido"), 65, { ...RIF_SAT, ossido_temp_min: null, ossido_temp_max: null }), "");
 });
+
+test("minutiFa: come minutiDa, ma mai negativo (gli orologi non coincidono al secondo)", () => {
+  const adesso = new Date(2026, 8, 4, 10, 0, 0);
+  assert.equal(c.minutiFa(new Date(2026, 8, 4, 9, 30, 0), adesso), 30);
+  // un istante mezzo secondo nel futuro: "adesso", non "-1 min fa"
+  assert.equal(c.minutiDa(new Date(2026, 8, 4, 10, 0, 1), adesso), -1);
+  assert.equal(c.minutiFa(new Date(2026, 8, 4, 10, 0, 1), adesso), 0);
+  assert.equal(c.minutiFa(null, adesso), null);
+});

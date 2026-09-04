@@ -6,7 +6,7 @@
 // ============================================================
 import { byId, sb, salva } from "../db.js";
 import {
-  lunediDellaSettimana, formattaNumero, oraItaliana, minutiDa, fermoAperto,
+  lunediDellaSettimana, formattaNumero, oraItaliana, minutiFa, fermoAperto,
   CAUSE_FERMO, SOGLIA_CONTROLLO_MIN,
 } from "../comune.js";
 import * as evento from "./evento.js";
@@ -123,7 +123,7 @@ async function disegnaInCorso(lav) {
   const rotolo = `${grezzo.data?.n_prog ?? "rotolo"} · ${scheda.data?.lavorazione ?? "scheda"}`;
 
   // Minuti dall'ultimo controllo; senza controlli si contano dall'avvio.
-  const minuti = minutiDa(controllo.data?.rilevato_il ?? lav.avviata_il);
+  const minuti = minutiFa(controllo.data?.rilevato_il ?? lav.avviata_il);
   const pezzi = [`avviato ${oraItaliana(lav.avviata_il)} da ${operatore.data?.nome ?? "operatore"}`];
   pezzi.push(controllo.data ? `ultimo controllo ${formattaNumero(minuti)} min fa` : "nessun controllo");
   // I metri si sanno solo dal contametri di un controllo: senza, la voce non compare.
@@ -134,7 +134,7 @@ async function disegnaInCorso(lav) {
   // Il rosso del FERMO vince su quello del controllo scaduto: la linea ferma è la cosa più
   // importante da vedere, e si distingue perché il titolo comincia con "FERMO".
   if (fermo) {
-    const da = minutiDa(fermo.avvenuto_il);
+    const da = minutiFa(fermo.avvenuto_il);
     byId("rep-banner-titolo").textContent =
       `FERMO da ${da != null ? formattaNumero(da) : "?"} min · ${CAUSE_FERMO[fermo.causa_fermo] ?? "causa non indicata"}`;
     pezzi.unshift(rotolo);

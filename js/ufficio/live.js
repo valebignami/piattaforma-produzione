@@ -8,7 +8,7 @@
 // ============================================================
 import { byId, sb } from "../db.js";
 import {
-  formattaNumero, oraItaliana, dataBreveItaliana, minutiDa, inizioGiornata,
+  formattaNumero, oraItaliana, dataBreveItaliana, minutiFa, inizioGiornata,
   fermoAperto, descrizioneEvento, elencoFuori, CAMPI_CONTROLLO, MOMENTI, CAUSE_FERMO,
 } from "../comune.js";
 
@@ -108,7 +108,7 @@ async function disegnaUltimoControllo(lav) {
   if (!r.data) return;
 
   const c = r.data;
-  const minuti = minutiDa(c.rilevato_il);
+  const minuti = minutiFa(c.rilevato_il);
   corpo.append(riga("Rilevato", `${oraItaliana(c.rilevato_il)}`
     + (minuti != null ? ` · ${formattaNumero(minuti)} min fa` : "")
     + ` · ${MOMENTI[c.momento] ?? c.momento}`));
@@ -129,7 +129,7 @@ async function disegnaFermo(lav) {
   if (r.error) { box.hidden = true; return; }
   const fermo = fermoAperto(r.data);
   if (!fermo) { box.hidden = true; return; }
-  const da = minutiDa(fermo.avvenuto_il);
+  const da = minutiFa(fermo.avvenuto_il);
   box.textContent = `FERMO da ${da != null ? formattaNumero(da) : "?"} min · `
     + `${CAUSE_FERMO[fermo.causa_fermo] ?? "causa non indicata"} · dalle ${oraItaliana(fermo.avvenuto_il)}`;
   box.hidden = false;

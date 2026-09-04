@@ -220,6 +220,14 @@ export function minutiDa(quando, adesso = new Date()) {
   return Math.floor((ora.getTime() - d.getTime()) / 60000);
 }
 
+// Minuti "fa", mai negativi. L'ora la scrive il DATABASE (default now()) e il conto lo fa il
+// TABLET: sono due orologi diversi, e un controllo appena salvato può risultare mezzo secondo
+// nel futuro. Senza questo, subito dopo il salvataggio il banner scriveva "-1 min fa".
+export function minutiFa(quando, adesso = new Date()) {
+  const m = minutiDa(quando, adesso);
+  return m == null ? null : Math.max(0, m);
+}
+
 // L'ora di un timestamptz nel fuso LOCALE ("08:12"). Come dataBreveItaliana: tagliare i
 // caratteri della stringa darebbe l'ora UTC, cioè due ore prima in estate.
 export function oraItaliana(valore) {

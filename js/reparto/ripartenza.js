@@ -6,7 +6,7 @@
 // lavorazione e non successivo alla ripartenza.
 // ============================================================
 import { byId, sb, salva } from "../db.js";
-import { METRI_SCARTO_RIPARTENZA, CAUSE_FERMO, fermoAperto, minutiDa, oraItaliana, formattaNumero } from "../comune.js";
+import { METRI_SCARTO_RIPARTENZA, CAUSE_FERMO, fermoAperto, minutiFa, oraItaliana, formattaNumero } from "../comune.js";
 
 const AVVISO = "Il tratto dalla sgrassatura all'uscita dell'ossido va scartato.";
 
@@ -46,7 +46,7 @@ export async function mostra(ctx) {
   fermo = fermoAperto(eventi.data);
   if (!fermo) return esito("Non c'è nessun fermo aperto: la linea sta già andando.", "errore");
 
-  const minuti = minutiDa(fermo.avvenuto_il);
+  const minuti = minutiFa(fermo.avvenuto_il);
   byId("rep-rip-fermo").textContent =
     `Fermo dalle ${oraItaliana(fermo.avvenuto_il)} · ${CAUSE_FERMO[fermo.causa_fermo] ?? "causa non indicata"}`
     + (minuti != null ? ` · ${formattaNumero(minuti)} min` : "");
