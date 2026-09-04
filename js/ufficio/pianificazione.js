@@ -114,7 +114,7 @@ function disegnaSequenza(righe, lavorate) {
       `${formattaNumero(g.larghezza_mm)} × ${formattaNumero(g.spessore_mm, 2)} mm · ${g.cliente ?? "cliente non indicato"}`
       + (lavorata ? " · già lavorata" : ""), "dettaglio"));
     if (p.posizione < 0) {
-      card.append(paragrafo("Questa riga è rimasta fuori sequenza: spostala con ▲ ▼ oppure toglila e riaggiungila.", "avviso-riga"));
+      card.append(paragrafo("Questa riga è rimasta fuori sequenza: toglila e riaggiungila in fondo al programma.", "avviso-riga"));
     }
 
     const campi = document.createElement("div");
@@ -169,9 +169,12 @@ function campoTesto(p, colonna, etichetta, lavorata) {
   inp.type = "text";
   inp.value = p[colonna] ?? "";
   inp.disabled = lavorata || occupato;
-  inp.addEventListener("blur", () => {
+  inp.addEventListener("blur", async () => {
     const nuovo = inp.value.trim() || null;
-    if (nuovo !== (p[colonna] ?? null)) scrivi(p.id, { [colonna]: nuovo });
+    if (nuovo === (p[colonna] ?? null)) return;
+    // La riga in memoria si aggiorna solo a scrittura riuscita: senza, ogni uscita dal campo
+    // rimanderebbe lo stesso update.
+    if (await scrivi(p.id, { [colonna]: nuovo })) p[colonna] = nuovo;
   });
   div.append(et, inp);
   return div;
@@ -180,8 +183,10 @@ function campoTesto(p, colonna, etichetta, lavorata) {
 function comandiRiga(p, i, righe, lavorata) {
   const div = document.createElement("div");
   div.className = "comandi-riga";
-  const su = tastoRiga("▲", i === 0 || occupato, () => scambia(p, righe[i - 1]));
-  const giu = tastoRiga("▼", i === righe.length - 1 || occupato, () => scambia(p, righe[i + 1]));
+  // Una riga fuori sequenza (posizione negativa) non si sposta: si toglie e si riaggiunge.
+  const bloccato = occupato || p.posizione < 0;
+  const su = tastoRiga("▲", i === 0 || bloccato || righe[i - 1]?.posizione < 0, () => scambia(p, righe[i - 1], righe));
+  const giu = tastoRiga("▼", i === righe.length - 1 || bloccato || righe[i + 1]?.posizione < 0, () => scambia(p, righe[i + 1], righe));
   const togli = tastoRiga("Togli", lavorata || occupato, () => rimuovi(p));
   togli.className = "secondario";
   div.append(su, giu, togli);
@@ -198,10 +203,12 @@ function tastoRiga(testo, disabilitato, azione) {
 }
 
 // ---------- Scritture ----------
+// Il messaggio si scrive SEMPRE dopo l'eventuale mostra(): mostra() chiude con esito(""), e
+// scriverlo prima lo cancellerebbe senza che nessuno lo legga.
 async function scrivi(id, campi, messaggi = DOPPIONE) {
   esito("Salvo…");
   const r = await salva(() => sb.from("pianificazione").update(campi).eq("id", id), { messaggi });
-  if (!r.ok) { esito(r.errore, "errore"); await mostra(contesto); return false; }
+  if (!r.ok) { await mostra(contesto); esito(r.errore, "errore"); return false; }
   esito("Salvato.", "ok");
   return true;
 }
@@ -226,16 +233,25 @@ async function rimuovi(p) {
 }
 
 // Scambio di posizione in tre passi: unique (settimana, posizione) vieta lo scambio diretto e
-// PostgREST non ha transazioni. La posizione di appoggio è negativa, quindi mai occupata.
-// Durante i tre passi tutti i comandi della sequenza sono disabilitati; se un passo fallisce si
-// ricarica dal database e la riga rimasta a posizione negativa resta visibile, in cima.
-async function scambia(a, b) {
-  if (!b || occupato) return;
+// PostgREST non ha transazioni. Durante i tre passi tutti i comandi della sequenza sono
+// disabilitati, così non si sovrappongono due scambi.
+//
+// La posizione di appoggio è più bassa di ogni posizione in uso nella settimana (in valore
+// assoluto), quindi certamente libera: usare -|posizione di A| non basterebbe, perché se A è già
+// in appoggio da uno scambio interrotto il secondo passo tenterebbe di portarci anche B e
+// violerebbe il vincolo. Per lo stesso motivo ▲▼ è disabilitato sulle righe fuori sequenza: si
+// recuperano con Togli e riaggiungi.
+//
+// Se un passo fallisce si prova a rimettere A dov'era (la sua posizione è ancora libera se il
+// guasto è stato al secondo passo, che è il caso frequente), poi si ricarica dal database.
+async function scambia(a, b, righe) {
+  if (!b || occupato || a.posizione < 0 || b.posizione < 0) return;
   occupato = true;
   await mostra(contesto);                       // ridisegna con i comandi disabilitati
   esito("Sposto…");
+  const appoggio = -(1 + Math.max(0, ...righe.map((r) => Math.abs(r.posizione))));
   const passi = [
-    [a.id, { posizione: -Math.abs(a.posizione) }],
+    [a.id, { posizione: appoggio }],
     [b.id, { posizione: a.posizione }],
     [a.id, { posizione: b.posizione }],
   ];
@@ -244,6 +260,7 @@ async function scambia(a, b) {
     const r = await salva(() => sb.from("pianificazione").update(campi).eq("id", id), { messaggi: DOPPIONE });
     if (!r.ok) { fermo = r.errore; break; }
   }
+  if (fermo) await sb.from("pianificazione").update({ posizione: a.posizione }).eq("id", a.id);
   occupato = false;
   await mostra(contesto);
   esito(fermo ?? "Spostato.", fermo ? "errore" : "ok");

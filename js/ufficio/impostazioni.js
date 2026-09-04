@@ -72,9 +72,9 @@ function disegna(righe) {
 async function scrivi(id, campi, messaggi = {}) {
   esito("Salvo…");
   const r = await salva(() => sb.from("operatori").update(campi).eq("id", id), { messaggi });
-  if (!r.ok) { esito(r.errore, "errore"); await mostra(); return; }
+  // Il messaggio si scrive dopo mostra(), che chiude con esito("") e lo cancellerebbe.
   await mostra();
-  esito("Salvato.", "ok");
+  esito(r.ok ? "Salvato." : r.errore, r.ok ? "ok" : "errore");
 }
 
 async function aggiungi(ev) {

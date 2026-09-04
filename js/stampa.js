@@ -10,8 +10,12 @@ const parametri = new URLSearchParams(location.search);
 const tipo = parametri.get("tipo");
 const nProg = parametri.get("n_prog");
 
+// Con un errore il foglio si nasconde: un foglio intestato ma vuoto, finito in cartelletta,
+// è peggio di nessun foglio.
 function errore(testo) {
   byId("stampa-errore").textContent = testo;
+  byId("stampa-foglio").hidden = !!testo;
+  byId("stampa-avvia").disabled = !!testo;
 }
 
 async function aggiorna() {
