@@ -247,3 +247,99 @@ test("etichettaScheda: nome, micron e misure per distinguere le omonime", () => 
   assert.equal(c.etichettaScheda(null), "—");
   assert.equal(c.etichettaScheda({ micron: 3 }), "scheda senza nome · 3 my");
 });
+
+// ============================================================
+// Fase 3 — controlli ed eventi
+// ============================================================
+
+test("costanti e mappe della Fase 3", () => {
+  assert.equal(c.METRI_SCARTO_RIPARTENZA, 100);
+  assert.deepEqual(Object.keys(c.MOMENTI), ["inizio", "meta", "fine", "periodico"]);
+  assert.equal(Object.keys(c.CAUSE_FERMO).length, 5);
+  assert.equal(Object.keys(c.TIPI_EVENTO).length, 8);
+  assert.deepEqual(c.PRODOTTI_AGGIUNTA, ["satina", "ammoniaca", "altro"]);
+  // ogni etichetta è una stringa non vuota: una chiave senza testo lascerebbe un bottone muto
+  for (const mappa of [c.MOMENTI, c.CAUSE_FERMO, c.TIPI_EVENTO]) {
+    for (const [k, v] of Object.entries(mappa)) assert.ok(v && v.length > 0, `etichetta vuota: ${k}`);
+  }
+});
+
+test("CAMPI_CONTROLLO: le tre zone, e ogni `fuori` esiste nel risultato di fuoriRange", () => {
+  assert.deepEqual([...new Set(c.CAMPI_CONTROLLO.map((x) => x.zona))], ["Linea", "Vasche", "Qualità"]);
+  const risultato = c.fuoriRange({}, RIF_SAT);
+  for (const campo of c.CAMPI_CONTROLLO) {
+    if (campo.fuori) assert.ok(campo.fuori in risultato, `manca in fuoriRange: ${campo.fuori}`);
+  }
+  // i campi senza riferimento sono esattamente contametri e tensione (spec §2.6)
+  assert.deepEqual(c.CAMPI_CONTROLLO.filter((x) => !x.fuori).map((x) => x.campo), ["contametri", "tensione_v"]);
+});
+
+test("momentoProposto: il primo controllo è l'inizio, gli altri sono periodici", () => {
+  assert.equal(c.momentoProposto(0), "inizio");
+  assert.equal(c.momentoProposto(1), "periodico");
+  assert.equal(c.momentoProposto(7), "periodico");
+});
+
+const EV_FERMO = { id: "f1", tipo: "fermo", avvenuto_il: "2026-09-04T08:00:00Z", causa_fermo: "guasto" };
+const EV_FERMO2 = { id: "f2", tipo: "fermo", avvenuto_il: "2026-09-04T10:00:00Z", causa_fermo: "bagno" };
+
+test("fermoAperto: nessun fermo → null", () => {
+  assert.equal(c.fermoAperto([]), null);
+  assert.equal(c.fermoAperto([{ id: "n1", tipo: "nota" }]), null);
+});
+test("fermoAperto: un fermo senza ripartenza è aperto", () => {
+  assert.equal(c.fermoAperto([EV_FERMO]).id, "f1");
+});
+test("fermoAperto: un fermo con la sua ripartenza è chiuso", () => {
+  const ev = [EV_FERMO, { id: "r1", tipo: "ripartenza", fermo_id: "f1", avvenuto_il: "2026-09-04T08:30:00Z" }];
+  assert.equal(c.fermoAperto(ev), null);
+});
+test("fermoAperto: una ripartenza che punta un altro fermo non chiude questo", () => {
+  const ev = [EV_FERMO, EV_FERMO2, { id: "r1", tipo: "ripartenza", fermo_id: "f1", avvenuto_il: "2026-09-04T08:30:00Z" }];
+  assert.equal(c.fermoAperto(ev).id, "f2");
+});
+test("fermoAperto: con due fermi aperti vince il più recente", () => {
+  assert.equal(c.fermoAperto([EV_FERMO, EV_FERMO2]).id, "f2");
+  assert.equal(c.fermoAperto([EV_FERMO2, EV_FERMO]).id, "f2");
+});
+
+test("descrizioneEvento: una riga in italiano per ogni tipo", () => {
+  assert.equal(c.descrizioneEvento({ tipo: "difetto", tipo_difetto_nome: "Righe", contametri: 1250 }),
+    "Difetto: Righe a 1.250 m");
+  assert.equal(c.descrizioneEvento({ tipo: "fermo", causa_fermo: "guasto" }), "Fermo · Guasto · ancora aperto");
+  assert.equal(c.descrizioneEvento({ tipo: "fermo", causa_fermo: "bagno", durata_min: 12 }), "Fermo · Bagno · 12 min");
+  assert.equal(c.descrizioneEvento({ tipo: "ripartenza", metri_scarto: 100 }), "Ripartenza · 100 m di scarto");
+  assert.equal(c.descrizioneEvento({ tipo: "aggiunta", prodotto: "satina", litri: 20 }), "Aggiunta: satina · 20,0 l");
+  assert.equal(c.descrizioneEvento({ tipo: "giunta_film", contametri: 300 }), "Giunta film a 300 m");
+  assert.equal(c.descrizioneEvento({ tipo: "primi_metri_non_ossidati", contametri: 15 }), "Primi metri non ossidati a 15 m");
+  assert.equal(c.descrizioneEvento({ tipo: "nota", descrizione: "cambio turno" }), "Nota — cambio turno");
+});
+
+test("elencoFuori: traduce in etichette i campi che la vista segna fuori", () => {
+  assert.deepEqual(c.elencoFuori(null), []);
+  assert.deepEqual(c.elencoFuori({ temp_ossido_fuori: false, micron_fuori: false }), []);
+  assert.deepEqual(c.elencoFuori({ temp_ossido_fuori: true, micron_fuori: true }), ["Ossido", "Micron"]);
+});
+
+test("inizioGiornata: mezzanotte locale, non UTC", () => {
+  const g = c.inizioGiornata(new Date(2026, 8, 4, 23, 30));
+  assert.equal(g.getFullYear(), 2026);
+  assert.equal(g.getMonth(), 8);
+  assert.equal(g.getDate(), 4);
+  assert.equal(g.getHours(), 0);
+  assert.equal(g.getMinutes(), 0);
+});
+
+test("istanteDaOra: componenti locali, e un'ora nel futuro è di ieri", () => {
+  const adesso = new Date(2026, 8, 4, 10, 0);
+  const d = c.istanteDaOra("09:45", adesso);
+  assert.equal(d.getDate(), 4);
+  assert.equal(d.getHours(), 9);
+  assert.equal(d.getMinutes(), 45);
+  // alle 00:05 del 5 settembre, "23:50" è di ieri
+  const notte = c.istanteDaOra("23:50", new Date(2026, 8, 5, 0, 5));
+  assert.equal(notte.getDate(), 4);
+  assert.equal(notte.getHours(), 23);
+  assert.equal(c.istanteDaOra("", adesso), null);
+  assert.equal(c.istanteDaOra("25:00", adesso), null);
+});
