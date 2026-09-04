@@ -51,31 +51,34 @@ test("prossimoNProg: massimo mai usato + 1, stessa lettera, ignora i codici fuor
   assert.equal(c.prossimoNProg([], "A"), "A0001");
 });
 
-const RIF_SAT = { sgrassatura_temp_min: 52, sgrassatura_temp_max: 68, satina_temp_min: 50, satina_temp_max: 58,
-  ossido_temp_min: 33, ossido_temp_max: 39, fissaggio_temp_min: 92, fissaggio_temp_max: 98,
-  velocita_prevista: 2.3, ampere_previsti: 8400, micron_previsti: 5, tipo: "satinato" };
+// Numeri INVENTATI, non i parametri veri delle vasche: il repo è pubblico e i valori di
+// processo stanno solo nel Word e in sql/seed_schede.sql, che è gitignorato. Qui contano le
+// regole (dentro/fuori, ±10 %, soglie del gloss), non i valori.
+const RIF_SAT = { sgrassatura_temp_min: 20, sgrassatura_temp_max: 30, satina_temp_min: 40, satina_temp_max: 50,
+  ossido_temp_min: 60, ossido_temp_max: 70, fissaggio_temp_min: 80, fissaggio_temp_max: 90,
+  velocita_prevista: 10, ampere_previsti: 1000, micron_previsti: 100, tipo: "satinato" };
 const RIF_NAT = { ...RIF_SAT, tipo: "naturale" };
 
 test("fuoriRange: dentro i range → niente fuori", () => {
-  const r = c.fuoriRange({ temp_sgrassatura: 60, temp_ossido: 37, velocita_m_min: 2.3, corrente_a: 8400,
-    micron: 5, gloss_perpendicolare: 30, gloss_parallelo: 50 }, RIF_SAT);
+  const r = c.fuoriRange({ temp_sgrassatura: 25, temp_ossido: 65, velocita_m_min: 10, corrente_a: 1000,
+    micron: 100, gloss_perpendicolare: 30, gloss_parallelo: 50 }, RIF_SAT);
   assert.equal(r.n_fuori, 0);
 });
 test("fuoriRange: temperatura sotto il minimo e sopra il massimo", () => {
-  assert.equal(c.fuoriRange({ temp_ossido: 32 }, RIF_SAT).temp_ossido_fuori, true);
-  assert.equal(c.fuoriRange({ temp_ossido: 40 }, RIF_SAT).temp_ossido_fuori, true);
-  assert.equal(c.fuoriRange({ temp_ossido: 39 }, RIF_SAT).temp_ossido_fuori, false);
+  assert.equal(c.fuoriRange({ temp_ossido: 59 }, RIF_SAT).temp_ossido_fuori, true);
+  assert.equal(c.fuoriRange({ temp_ossido: 71 }, RIF_SAT).temp_ossido_fuori, true);
+  assert.equal(c.fuoriRange({ temp_ossido: 70 }, RIF_SAT).temp_ossido_fuori, false);
 });
 test("fuoriRange: valore null o range assente → mai fuori", () => {
   assert.equal(c.fuoriRange({ temp_ossido: null }, RIF_SAT).temp_ossido_fuori, false);
-  assert.equal(c.fuoriRange({ temp_ossido: 99 }, { ...RIF_SAT, ossido_temp_min: null }).temp_ossido_fuori, false);
+  assert.equal(c.fuoriRange({ temp_ossido: 999 }, { ...RIF_SAT, ossido_temp_min: null }).temp_ossido_fuori, false);
 });
 test("fuoriRange: ±10 % su velocità, ampere, micron", () => {
-  assert.equal(c.fuoriRange({ velocita_m_min: 2.6 }, RIF_SAT).velocita_m_min_fuori, true);   // +13 %
-  assert.equal(c.fuoriRange({ velocita_m_min: 2.5 }, RIF_SAT).velocita_m_min_fuori, false);  // +8,7 %
-  assert.equal(c.fuoriRange({ corrente_a: 7500 }, RIF_SAT).corrente_a_fuori, true);          // −10,7 %
-  assert.equal(c.fuoriRange({ micron: 4.4 }, RIF_SAT).micron_fuori, true);                  // −12 %
-  assert.equal(c.fuoriRange({ micron: 5.5 }, RIF_SAT).micron_fuori, false);                 // +10 % esatto → dentro
+  assert.equal(c.fuoriRange({ velocita_m_min: 11.5 }, RIF_SAT).velocita_m_min_fuori, true);   // +15 %
+  assert.equal(c.fuoriRange({ velocita_m_min: 10.9 }, RIF_SAT).velocita_m_min_fuori, false);  // +9 %
+  assert.equal(c.fuoriRange({ corrente_a: 880 }, RIF_SAT).corrente_a_fuori, true);            // −12 %
+  assert.equal(c.fuoriRange({ micron: 88 }, RIF_SAT).micron_fuori, true);                    // −12 %
+  assert.equal(c.fuoriRange({ micron: 110 }, RIF_SAT).micron_fuori, false);                  // +10 % esatto → dentro
 });
 test("fuoriRange: gloss con soglia ≥, solo per schede satinate", () => {
   assert.equal(c.fuoriRange({ gloss_perpendicolare: 40 }, RIF_SAT).gloss_perpendicolare_fuori, true);

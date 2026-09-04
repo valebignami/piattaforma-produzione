@@ -233,8 +233,27 @@ def sql_valore(valore):
     return "'" + str(valore).replace("'", "''") + "'"
 
 
+# I quindici campi confrontati con l'Excel prima di importare (fase-2.md §2.1): sono quelli che
+# gli assert del seed riscrivono per esteso, così la prova resta ripetibile dentro il database.
+CAMPI_CONFRONTATI = [
+    "finitura", "velocita_m_min", "ossido_ampere",
+    "sgrassatura_prodotto", "sgrassatura_temp", "sgrassatura_temp_min", "sgrassatura_temp_max",
+    "satina_temp", "satina_temp_min", "satina_temp_max",
+    "ossido_temp", "ossido_temp_min", "ossido_temp_max",
+    "fissaggio_temp", "fissaggio_temp_min",
+]
+
+
+def campione(schede):
+    """Tre schede distanti fra loro, scelte in modo ripetibile: la prima, quella di mezzo e
+    l'ultima in ordine alfabetico. L'ultima è sempre una satinata, così anche le colonne della
+    satinatura finiscono sotto verifica."""
+    ordinate = sorted(schede, key=lambda s: (s["lavorazione"], s["spessore_min"], s["larghezza_min"]))
+    return [ordinate[0], ordinate[len(ordinate) // 2], ordinate[-1]]
+
+
 def scrivi_sql(schede, percorso_sql):
-    campione = sorted(schede, key=lambda s: (s["lavorazione"], s["spessore_min"], s["larghezza_min"]))[:1]
+    campione_scelto = campione(schede)
     righe = [
         "-- ============================================================",
         "-- seed_schede.sql — le 51 schede di lavorazione della Linea 1500.",
@@ -280,20 +299,18 @@ def scrivi_sql(schede, percorso_sql):
         "  assert (select count(*) from schede_lavorazione where velocita_m_min is null) = 0,",
         "         'una scheda è senza velocità di linea';",
     ]
-    # una scheda a campione scritta per esteso: confrontata con l'Excel prima di importare
-    for scheda in campione:
+    # le TRE schede a campione, scritte per esteso sui quindici campi confrontati con l'Excel
+    for scheda in campione_scelto:
         confronti = " and ".join(
             f"{c} {'is null' if scheda[c] is None else '= ' + sql_valore(scheda[c])}"
-            for c in ["velocita_m_min", "ossido_ampere", "sgrassatura_temp", "sgrassatura_temp_min",
-                      "sgrassatura_temp_max", "ossido_temp", "ossido_temp_min", "ossido_temp_max",
-                      "fissaggio_temp", "fissaggio_temp_min", "fissaggio_temp_max"])
+            for c in CAMPI_CONFRONTATI)
         righe += [
             "  assert (select count(*) from schede_lavorazione",
             f"          where lavorazione = {sql_valore(scheda['lavorazione'])}",
             f"            and spessore_min = {sql_valore(scheda['spessore_min'])}"
             f" and larghezza_min = {sql_valore(scheda['larghezza_min'])}",
             f"            and {confronti}) = 1,",
-            "         'la scheda a campione non ha i valori confrontati con l''Excel';",
+            f"         'la scheda a campione {scheda['lavorazione']} non ha i valori confrontati con l''Excel';",
         ]
     righe += ["end $$;", ""]
     percorso_sql.write_text("\n".join(righe), encoding="utf-8")

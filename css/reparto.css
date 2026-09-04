@@ -5,6 +5,9 @@
    semmai si alzano. */
 
 body.reparto { font-size: 19px; }
+/* base.css scrive `label { font-size: .95rem }`: il rem si misura sulla radice a 16 px, non sul
+   body, quindi sul tablet le etichette resterebbero a 15,2 px. Qui tornano sopra i 18 px. */
+body.reparto label { font-size: 18px; }
 
 /* ---------- Barra in alto ---------- */
 .barra-tablet {

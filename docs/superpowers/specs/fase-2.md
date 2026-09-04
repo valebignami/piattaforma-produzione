@@ -58,10 +58,12 @@ prodotto e temperatura di sgrassatura con minimo e massimo, temperatura di satin
 e massimo, temperatura di ossido con minimo e massimo, temperatura e minimo di fissaggio.
 
 **Esito: 51 righe nell'Excel, 51 schede nel Word, zero differenze su tutti i quindici campi.**
-Le tre schede a campione richieste dal piano (`OX Naturale 3 micron` più stretta;
-`OX Naturale 5 micron` più stretta; `OX Satinato Nat 8-10 micron` da 1000 mm) coincidono campo
-per campo. La verifica riguarda **i parametri di processo**: non riguarda `Lega`, `Cliente` e le
-note, che nel Word non esistono (sotto).
+Il confronto copre tutte le schede, quindi anche le tre a campione richieste dal piano: sono
+`OX Naturale 3 micron`, `OX Naturale 5 micron` e `OX Satinato Nat 8-10 micron` — la prima, quella
+di mezzo e l'ultima in ordine alfabetico — e i loro valori sono riscritti per esteso negli
+`assert` del seed (§2.3), così la prova resta ripetibile dentro il database. La verifica riguarda
+**i parametri di processo**: non riguarda `Lega`, `Cliente` e le note, che nel Word non esistono
+(sotto).
 
 L'Excel **non era indietro**: il Word è una riformattazione, non una correzione. In compenso il
 Word ha **meno** colonne dell'Excel:
@@ -125,8 +127,11 @@ di processo, e il repo è pubblico):
 2. un `insert` con le 51 righe;
 3. verifiche finali con `assert`: 51 righe; 30 naturali e 21 satinate; cinque valori distinti di
    `micron`; 51 righe con `sgrassatura_temp`, `ossido_temp`, `fissaggio_temp` e `ossido_ampere`
-   non nulli; 21 con `satina_temp` non nulla; 29 con `note`; e i valori delle **tre schede a
-   campione** confrontate con l'Excel, scritti per esteso.
+   non nulli; 21 con `satina_temp` non nulla; 29 con `note`; `lega` nulla su tutte; e i valori
+   delle **tre schede a campione**, scritti per esteso sui **quindici campi** confrontati con
+   l'Excel (§2.1). Le tre si scelgono in modo ripetibile: ordinate le 51 per nome, spessore e
+   larghezza, si prendono **la prima, quella di mezzo e l'ultima**. L'ultima è sempre una
+   satinata, così anche le colonne della satinatura finiscono sotto verifica.
 
 **Il file è un'unica transazione.** `apply_migration` esegue la migrazione dentro una
 transazione, quindi un `assert` che fallisce dopo l'`insert` annulla anche l'`insert`: non
@@ -478,6 +483,14 @@ esattamente ciò che la pianificazione aspettava ("— nessuna scheda caricata �
 - **Chi entra in `reparto.html` con l'utenza ufficio vede "riservata al reparto"**, come
   `ufficio.html` fa col reparto. Le policy consentirebbero all'ufficio di scrivere controlli ed
   eventi, ma il tablet è del reparto (spec §3) e l'ufficio ha le sue schermate.
+- **Una correzione fuori dalle voci della fase: i numeri della fixture di `fuoriRange` in
+  `tests/test-comune.mjs`.** Erano parametri di vasca veri, arrivati dalla Fase 0, in un file
+  **tracciato** di un repository **pubblico** — la stessa ragione per cui `seed_schede.sql` e
+  `seed_difetti.sql` sono gitignorati (CLAUDE.md). Non l'ho rimandata a una fase con lettera
+  perché è una fuga di know-how già in linea, e la correzione è la sostituzione di dieci numeri
+  con altrettanti inventati, senza nessun cambiamento di comportamento: i test provano le
+  regole (dentro/fuori, ±10 %, soglie del gloss), non i valori. Segnalata dalla revisione di
+  conformità.
 - **Un ritentativo di `salva()` su una RPC dopo un guasto di rete** può trovare l'operazione già
   riuscita: `avvia_lavorazione` risponderebbe "C'è già una lavorazione aperta sulla linea 1500" e
   `annulla_lavorazione` "La lavorazione è già annullata". Sono messaggi italiani corretti e la
