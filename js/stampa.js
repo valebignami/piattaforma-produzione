@@ -4,7 +4,7 @@
 // Tutte le stampe si fanno dall'ufficio (decisione del committente, spec §8): nessuna dal tablet.
 // ============================================================
 import { byId, sb, ruoloCorrente, login } from "./db.js";
-import { formattaNumero } from "./comune.js";
+import { formattaNumero, dataBreveItaliana } from "./comune.js";
 
 const parametri = new URLSearchParams(location.search);
 const tipo = parametri.get("tipo");
@@ -50,7 +50,7 @@ async function disegna() {
     ["Spessore", grezzo.spessore_mm == null ? null : `${formattaNumero(grezzo.spessore_mm, 2)} mm`],
     ["Larghezza", grezzo.larghezza_mm == null ? null : `${formattaNumero(grezzo.larghezza_mm)} mm`],
     ["Peso di bolla", `${formattaNumero(grezzo.peso_bolla_kg)} kg`],
-    ["Data di arrivo", grezzo.data_arrivo],
+    ["Data di arrivo", grezzo.data_arrivo == null ? null : dataBreveItaliana(grezzo.data_arrivo)],
     ["Posizione", grezzo.posizione],
     ["Note", grezzo.note],
   ]);
@@ -70,7 +70,7 @@ async function disegna() {
       cella(f.codice),
       cella(f.lavorazioni?.schede_lavorazione?.lavorazione ?? "—"),
       cella(`${formattaNumero(f.peso_netto_kg)} kg`, "num"),
-      cella((f.lavorazioni?.chiusa_il ?? "").slice(0, 10) || "—"),
+      cella(dataBreveItaliana(f.lavorazioni?.chiusa_il)),
     );
     corpo.append(tr);
   }
