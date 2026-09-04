@@ -43,6 +43,8 @@
 | Storico correzioni | no; bastano `modificato_da/il` da trigger |
 | Capoturno | distinzione del solo front-end |
 | Rotoli di collaudo | dieci, `COLLAUDO-0001…0010`, nascosti in ufficio per default |
+| **Fonte delle schede di lavorazione** (2026-09-04) | **`Desktop/Schede di lavorazione/Schede di lavorazione Impianto 1500.docx`** (28 luglio, 16:52), **non** `Schede Impianto 1500.xlsx` (27 luglio). Il Word è la revisione più recente: l'app `schede-1500-web` è stata rigenerata da lì dieci minuti dopo. **Scostamento dichiarato dallo spec §2.1**, che indicava l'Excel; vale solo per il file di partenza, non per le regole di conversione |
+| **App `schede-1500` esistente** (2026-09-04) | resta com'è: è un visualizzatore con i dati cifrati in pagina (blocco AES di 43.000 caratteri, nessun testo in chiaro), quindi non è interrogabile da un programma e non può sostituire le schede in tabella. La sua sostituzione è il sotto-progetto 3, non questa fetta |
 
 ## §3 Le fasi
 
@@ -89,8 +91,16 @@ il programma; il file JSON di backup si scarica.
 stampa dal tablet; `n_prog` proposto ignora i `COLLAUDO-*`.
 
 ### Fase 2 — Avvio da tablet
-1. `tools/importa_schede.py` → `sql/seed_schede.sql` dalle ~60 righe di
-   `Desktop/Schede di lavorazione/Schede Impianto 1500.xlsx` (regole spec §2.1); applicazione.
+1. `tools/importa_schede.py` → `sql/seed_schede.sql` dalle **51 schede** di
+   `Desktop/Schede di lavorazione/Schede di lavorazione Impianto 1500.docx` (§2, decisione del
+   2026-09-04: il Word è più recente dell'Excel indicato dallo spec §2.1); applicazione.
+   Struttura del Word: una tabella per scheda, in testa FINITURA / SPESSORE / LARGHEZZA, poi le
+   righe SGRASSATURA · SATINATURA · OSSIDO · FISSAGGIO con le colonne FASE, PRODOTTO / NOTE,
+   T (°C), **TOLLERANZA T**, CORRENTE (A). La colonna TOLLERANZA T va convertita nel `min`/`max`
+   delle colonne `<vasca>_temp_min` / `<vasca>_temp_max` dello schema; le regole di spec §2.1
+   (intervallo → min/max, valore singolo → min = max, nitrico non importato) restano valide.
+   **Prima di importare**: confrontare tre schede a campione fra Word ed Excel e riportare le
+   differenze, così si vede se e quanto l'Excel fosse indietro.
 2. `reparto.html` con shell tablet (≥ 56 px, ≥ 18 px, 1024×768), scelta operatore
    (`localStorage`), indicatore "Salvato ✓ / In attesa di rete".
 3. **Hub** linea libera: "Avvia rotolo" + "In programma questa settimana" (join su
