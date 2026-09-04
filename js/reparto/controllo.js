@@ -7,8 +7,8 @@
 // ============================================================
 import { byId, sb, salva } from "../db.js";
 import {
-  CAMPI_CONTROLLO, MOMENTI, TOLLERANZA_PCT, GLOSS_PERP_MAX, GLOSS_PAR_MAX,
-  fuoriRange, momentoProposto, etichettaScheda, formattaNumero,
+  CAMPI_CONTROLLO, MOMENTI,
+  fuoriRange, ragioneFuori, momentoProposto, etichettaScheda, formattaNumero,
 } from "../comune.js";
 
 let contesto = null;
@@ -81,7 +81,12 @@ export async function mostra(ctx) {
 
 // ---------- I campi, disegnati una volta sola da CAMPI_CONTROLLO ----------
 function costruisciCampi() {
-  if (campi.size > 0) return;
+  // Alla seconda visita i campi ci sono già: si ripuliscono i rossi della volta prima, che
+  // altrimenti resterebbero a video per tutto il caricamento.
+  if (campi.size > 0) {
+    for (const [nome, input] of campi) { input.className = ""; ragioni.get(nome).hidden = true; }
+    return;
+  }
   const contenitore = byId("rep-ctl-campi");
   contenitore.textContent = "";
   let zona = null;
@@ -158,20 +163,6 @@ function riferimenti() {
   };
 }
 
-// Il FATTO (dentro o fuori) lo dice fuoriRange; qui si sceglie solo COME dirlo a parole.
-function comeMai(campo, valore, rif) {
-  const min = rif[`${campo.campo.replace(/^temp_/, "")}_temp_min`];
-  const max = rif[`${campo.campo.replace(/^temp_/, "")}_temp_max`];
-  if (campo.campo.startsWith("temp_")) {
-    if (min != null && valore < min) return `sotto il minimo (${formattaNumero(min, 1)})`;
-    return `sopra il massimo (${formattaNumero(max, 1)})`;
-  }
-  if (campo.campo === "gloss_perpendicolare") return `pari o oltre ${GLOSS_PERP_MAX}`;
-  if (campo.campo === "gloss_parallelo") return `pari o oltre ${GLOSS_PAR_MAX}`;
-  const previsto = { velocita_m_min: rif.velocita_prevista, corrente_a: rif.ampere_previsti, micron: rif.micron_previsti }[campo.campo];
-  return `oltre il ±${TOLLERANZA_PCT} % del previsto (${formattaNumero(previsto, 1)})`;
-}
-
 function aggiornaColori() {
   if (!scheda || !lav) return;
   const v = valori();
@@ -182,7 +173,7 @@ function aggiornaColori() {
     campi.get(c.campo).className = fuori ? "fuori" : "";
     const ragione = ragioni.get(c.campo);
     ragione.hidden = !fuori;
-    ragione.textContent = fuori ? comeMai(c, v[c.campo], rif) : "";
+    ragione.textContent = fuori ? ragioneFuori(c, v[c.campo], rif) : "";
   }
 }
 
@@ -201,13 +192,19 @@ async function conferma() {
   // rilevato_il NON si invia: lo mette il default del database. In correzione non si tocca
   // nemmeno operatore_id: la riga dice chi ha misurato, e che sia stata corretta lo dicono
   // modificato_da e modificato_il, scritti dal trigger.
+  // In correzione si chiede indietro la riga con .select(): senza, un update che la policy non
+  // fa passare (lavorazione chiusa nel frattempo) tornerebbe 204 SENZA errore, e il tablet
+  // direbbe "Salvato ✓" avendo salvato niente. È la stessa trappola silenziosa del range().
   const r = await salva(() => (daCorreggere
-    ? sb.from("controlli").update(riga).eq("id", daCorreggere.id)
+    ? sb.from("controlli").update(riga).eq("id", daCorreggere.id).select("id")
     : sb.from("controlli").insert({ ...riga, lavorazione_id: lav.id, operatore_id: contesto.operatore.id })
   ), rete(contesto));
 
   byId("rep-ctl-salva").disabled = false;
   if (!r.ok) return esito(r.errore, "errore");
+  if (daCorreggere && (r.data?.length ?? 0) === 0) {
+    return esito("Questo controllo non si può più correggere: la lavorazione è chiusa.", "errore");
+  }
   daCorreggere = null;
   contesto.vaiA("hub");
 }

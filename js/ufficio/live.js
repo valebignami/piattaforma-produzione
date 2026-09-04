@@ -144,6 +144,9 @@ async function disegnaNastro() {
   contenitore.textContent = "";
   const da = inizioGiornata().toISOString();
 
+  // Niente .range(): la regola di CLAUDE.md vale per le letture che devono essere COMPLETE
+  // (l'esportazione). Qui è una giornata sola di una linea sola, molto sotto le 1000 righe con
+  // cui PostgREST tronca; se un giorno le superasse, si vedrebbero le prime 1000 del giorno.
   const [controlli, eventi, operatori, difetti] = await Promise.all([
     sb.from("controlli_scostamenti").select("*").gte("rilevato_il", da),
     sb.from("eventi").select("*").gte("avvenuto_il", da),

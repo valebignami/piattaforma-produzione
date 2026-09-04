@@ -58,6 +58,10 @@ export async function mostra(ctx) {
   richiesta = null;
   tipo = null;
   scelta = null;
+  // Si svuota SUBITO: se una delle letture fallisce, i bottoni della visita precedente
+  // resterebbero a video con sotto un messaggio d'errore, e porterebbero a una lavorazione vecchia.
+  byId("rep-ev-tipi").textContent = "";
+  byId("rep-ev-salva").disabled = true;
   esito("Carico…");
   passo(1);
 
@@ -96,12 +100,17 @@ function disegnaTipi() {
     if (codice === "ripartenza") continue;          // si registra dall'hub, non da qui
     const tasto = document.createElement("button");
     tasto.type = "button";
-    tasto.textContent = testo;
+    tasto.append(document.createTextNode(testo));
     // Un secondo fermo mentre uno è aperto lascerebbe un fermo senza ripartenza: si mostra
     // quello che si sa già, la regola resta del database.
     if (codice === "fermo" && cFermoAperto) {
+      // Un title è un suggerimento del mouse: su un tablet non compare mai. La ragione si scrive
+      // dentro il bottone, come "dalla prossima fase" degli altri tasti spenti.
       tasto.disabled = true;
-      tasto.title = "C'è già un fermo aperto: registra la ripartenza dall'hub.";
+      const perche = document.createElement("span");
+      perche.className = "prossima";
+      perche.textContent = "c'è già un fermo aperto";
+      tasto.append(perche);
     } else {
       tasto.addEventListener("click", () => scegliTipo(codice));
     }

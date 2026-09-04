@@ -343,3 +343,15 @@ test("istanteDaOra: componenti locali, e un'ora nel futuro è di ieri", () => {
   assert.equal(c.istanteDaOra("", adesso), null);
   assert.equal(c.istanteDaOra("25:00", adesso), null);
 });
+
+test("ragioneFuori: dice a parole perché un campo è fuori riferimento", () => {
+  const trova = (nome) => c.CAMPI_CONTROLLO.find((x) => x.campo === nome);
+  assert.match(c.ragioneFuori(trova("temp_ossido"), 59, RIF_SAT), /sotto il minimo/);
+  assert.match(c.ragioneFuori(trova("temp_ossido"), 71, RIF_SAT), /sopra il massimo/);
+  assert.match(c.ragioneFuori(trova("micron"), 88, RIF_SAT), /oltre il \u00b110 %/);
+  assert.equal(c.ragioneFuori(trova("gloss_perpendicolare"), 40, RIF_SAT), "pari o oltre 40");
+  assert.equal(c.ragioneFuori(trova("gloss_parallelo"), 60, RIF_SAT), "pari o oltre 60");
+  // un campo senza riferimento non ha ragioni da dare
+  assert.equal(c.ragioneFuori(trova("contametri"), 999, RIF_SAT), "");
+  assert.equal(c.ragioneFuori(trova("temp_ossido"), 65, { ...RIF_SAT, ossido_temp_min: null, ossido_temp_max: null }), "");
+});

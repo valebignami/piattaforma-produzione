@@ -343,6 +343,29 @@ export function elencoFuori(riga) {
   return CAMPI_CONTROLLO.filter((c) => c.fuori && riga[c.fuori]).map((c) => c.etichetta);
 }
 
+// La ragione, in parole, per cui un campo di un controllo è fuori riferimento. NON decide
+// niente: il fatto lo stabilisce fuoriRange (e prima ancora la vista); qui si sceglie soltanto
+// come dirlo all'operatore. `campo` è una voce di CAMPI_CONTROLLO.
+export function ragioneFuori(campo, valore, rif) {
+  if (campo.campo.startsWith("temp_")) {
+    const vasca = campo.campo.replace(/^temp_/, "");
+    const min = rif[`${vasca}_temp_min`];
+    const max = rif[`${vasca}_temp_max`];
+    if (min != null && valore < min) return `sotto il minimo (${formattaNumero(min, 1)})`;
+    if (max != null && valore > max) return `sopra il massimo (${formattaNumero(max, 1)})`;
+    return "";
+  }
+  if (campo.campo === "gloss_perpendicolare") return `pari o oltre ${GLOSS_PERP_MAX}`;
+  if (campo.campo === "gloss_parallelo") return `pari o oltre ${GLOSS_PAR_MAX}`;
+  const previsto = {
+    velocita_m_min: rif.velocita_prevista,
+    corrente_a: rif.ampere_previsti,
+    micron: rif.micron_previsti,
+  }[campo.campo];
+  if (previsto == null) return "";
+  return `oltre il ±${TOLLERANZA_PCT} % del previsto (${formattaNumero(previsto, 1)})`;
+}
+
 // La mezzanotte LOCALE di un giorno, per filtrare "quello che è successo oggi". Un confine
 // costruito con toISOString() o con slice(0,10) sarebbe la mezzanotte UTC, cioè le 2 del mattino
 // in estate: le prime ore del turno finirebbero nel giorno prima.

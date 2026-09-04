@@ -99,3 +99,7 @@ button.fermo { background: var(--rosso); }
 /* ---------- Ultimi controlli (Fase 3) ---------- */
 .elenco-righe button.fuori { border-color: var(--rosso); }
 .elenco-righe button.fuori .dettaglio { color: var(--rosso); }
+
+/* Un bottone di griglia può portare sotto il nome la ragione per cui è spento (spec §3.1: la
+   ragione si legge sul tablet, un title del mouse non si vede). */
+.griglia-bottoni button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }

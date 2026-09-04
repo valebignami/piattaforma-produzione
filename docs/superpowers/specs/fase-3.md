@@ -253,12 +253,12 @@ lavorazione chiusa, e `durata_min` che il client non può scrivere.
 `reparto.html`
 
 ```
-rep-sch-controllo  rep-ctl-titolo  rep-ctl-momenti  rep-ctl-campi  rep-ctl-note
-rep-ctl-salva  rep-ctl-esito  rep-ctl-gloss
+rep-sch-controllo  rep-ctl-riepilogo  rep-ctl-momenti  rep-ctl-campi  rep-ctl-note
+rep-ctl-salva  rep-ctl-esito
 rep-sch-evento  rep-ev-1  rep-ev-tipi  rep-ev-2  rep-ev-titolo  rep-ev-scelte
 rep-ev-difetto-info  rep-ev-difetto-causa  rep-ev-difetto-azione
 rep-ev-campi  rep-ev-salva  rep-ev-esito
-rep-sch-ripartenza  rep-rip-titolo  rep-rip-metri  rep-rip-avviso  rep-rip-salva  rep-rip-esito
+rep-sch-ripartenza  rep-rip-fermo  rep-rip-metri  rep-rip-avviso  rep-rip-salva  rep-rip-esito
 rep-sch-ultimi  rep-ultimi-elenco  rep-ultimi-vuoto  rep-ultimi-esito
 rep-fermo  rep-ultimi-controlli   (tasti nuovi dell'hub)
 ```
@@ -266,7 +266,7 @@ rep-fermo  rep-ultimi-controlli   (tasti nuovi dell'hub)
 `ufficio.html`
 
 ```
-live-ultimo  live-ultimo-corpo  live-fermo  live-nastro  live-nastro-vuoto
+live-ultimo  live-ultimo-corpo  live-ultimo-vuoto  live-fermo  live-nastro  live-nastro-vuoto
 ```
 
 `tests/test-dom-ids.mjs` cresce di quattro coppie (`controllo.js`, `evento.js`,
