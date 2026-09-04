@@ -16,17 +16,19 @@ export const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const ATTESE_MS = [1000, 3000, 10000];
 const erroreDiRete = (e) => !e?.code && /fetch|network|rete|Failed/i.test(String(e?.message ?? e));
 
-// salva(fn, { onStato }) — fn è una funzione che ritorna la Promise di supabase-js ({data, error}).
-// onStato riceve "attesa" | "salvato" | "errore" per aggiornare l'indicatore.
-export async function salva(fn, { onStato = () => {} } = {}) {
+// salva(fn, { onStato, messaggi }) — fn è una funzione che ritorna la Promise di supabase-js
+// ({data, error}). onStato riceve "attesa" | "salvato" | "errore" per aggiornare l'indicatore.
+// messaggi è una mappa facoltativa { "<codice SQL>": "<testo italiano>" } che ha la precedenza
+// sui testi fissi: lo stesso vincolo di unicità significa cose diverse in schermate diverse.
+export async function salva(fn, { onStato = () => {}, messaggi = {} } = {}) {
   let tentativo = 0;
   for (;;) {
     try {
       const { data, error } = await fn();
       if (!error) { onStato("salvato"); return { ok: true, data }; }
-      if (!erroreDiRete(error)) { onStato("errore"); return { ok: false, errore: messaggio(error) }; }
+      if (!erroreDiRete(error)) { onStato("errore"); return { ok: false, errore: messaggio(error, messaggi) }; }
     } catch (e) {
-      if (!erroreDiRete(e)) { onStato("errore"); return { ok: false, errore: messaggio(e) }; }
+      if (!erroreDiRete(e)) { onStato("errore"); return { ok: false, errore: messaggio(e, messaggi) }; }
     }
     onStato("attesa");
     await new Promise((r) => setTimeout(r, ATTESE_MS[tentativo] ?? 30000));
@@ -36,10 +38,12 @@ export async function salva(fn, { onStato = () => {} } = {}) {
 
 // Gli errori delle RPC arrivano già in italiano (spec §5.5); i vincoli del DB parlano inglese e
 // vanno tradotti qui; tutto il resto diventa una frase generica.
-function messaggio(e) {
+function messaggio(e, messaggi = {}) {
   const m = e?.message ?? String(e);
+  if (e?.code && messaggi[e.code]) return messaggi[e.code];                                // testo della schermata, se c'è
   if (e?.code === "P0001") return m;                                                      // raise exception nelle RPC (italiano)
   if (e?.code === "23505") return "Questo numero è già stato usato: controlla il numero progressivo.";   // unicità
+  if (e?.code === "23503") return "Questo dato è collegato ad altre righe: non si può togliere.";        // chiave esterna
   if (e?.code === "23514") return "I dati inseriti non rispettano una regola del sistema: controlla pesi e residuo."; // check
   if (e?.code === "42501") return "Operazione non consentita per questa utenza.";          // RLS / grant
   console.error(e);

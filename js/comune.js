@@ -77,9 +77,20 @@ export function fuoriRange(ctl, rif) {
   return f;
 }
 
+// Numeri all'italiana. useGrouping "always": l'italiano di default non separa le migliaia sotto
+// i 10.000 (1250 → "1250"). Un valore assente si legge "—", non "0".
+export function formattaNumero(n, decimali = 0) {
+  if (n == null || n === "") return "—";
+  const x = Number(n);
+  if (!Number.isFinite(x)) return "—";
+  return new Intl.NumberFormat("it-IT", {
+    minimumFractionDigits: decimali, maximumFractionDigits: decimali, useGrouping: "always",
+  }).format(x);
+}
+
 // Precompilazione delle annotazioni per il cliente (spec §3.7): solo fatti, mai la diagnosi.
-// useGrouping "always": l'italiano di default non separa le migliaia sotto i 10.000 (1250 → "1250")
-const fmtM = (n) => new Intl.NumberFormat("it-IT", { maximumFractionDigits: 0, useGrouping: "always" }).format(n ?? 0);
+// Qui il "?? 0" resta: un contametri mancante si legge "0 m", non "— m".
+const fmtM = (n) => formattaNumero(n ?? 0);
 
 export function annotazioniDaEventi(eventi) {
   const frasi = [...eventi]
@@ -114,4 +125,61 @@ export function bilancioChiusura({ pesoConImballo, pesoImballo, pesoTubolare, fi
     eccesso: ok ? 0 : Math.round(totale - tetto),
     kgScarto: pesoTubolare == null ? null : disponibile - kgFigli - (kgResidui ?? 0),
   };
+}
+
+// ============================================================
+// Fase 1 — magazzino e pianificazione (ufficio)
+// ============================================================
+
+// Le settimane viaggiano SEMPRE come stringhe "AAAA-MM-GG" costruite dai componenti locali:
+// toISOString() su una data a mezzanotte locale restituisce il giorno prima a est di Greenwich,
+// e il programma finirebbe nella settimana sbagliata.
+function aIso(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// Accetta una Date o una stringa "AAAA-MM-GG" e restituisce la mezzanotte LOCALE di quel giorno.
+// new Date("2026-09-09") sarebbe mezzanotte UTC: a ovest di Greenwich cadrebbe il giorno prima.
+function aData(v) {
+  if (v instanceof Date) return new Date(v.getFullYear(), v.getMonth(), v.getDate());
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v));
+  if (!m) throw new Error("Data non valida: attesa AAAA-MM-GG");
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+}
+
+// Il lunedì della settimana di quella data (spec §2.3: la colonna settimana è il lunedì).
+// La domenica appartiene alla settimana che è iniziata il lunedì precedente.
+export function lunediDellaSettimana(data) {
+  const d = aData(data);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));   // domenica (0) → 6, lunedì (1) → 0
+  return aIso(d);
+}
+
+// Sposta un lunedì di ±n settimane. setDate lavora sui componenti locali: il cambio d'ora legale
+// non sposta il giorno.
+export function settimanaSpostata(isoLunedi, settimane) {
+  const d = aData(isoLunedi);
+  d.setDate(d.getDate() + settimane * 7);
+  return aIso(d);
+}
+
+// Schede compatibili con le dimensioni del grezzo (spec §3.4, §4.2), ordinate per micron.
+// Filtro di interfaccia, non una regola del database: il minimo e il massimo sono compresi.
+export function schedeCompatibili(schede, spessoreMm, larghezzaMm) {
+  return schede
+    .filter((s) =>
+      spessoreMm >= s.spessore_min && spessoreMm <= s.spessore_max &&
+      larghezzaMm >= s.larghezza_min && larghezzaMm <= s.larghezza_max)
+    .sort((a, b) => a.micron - b.micron);
+}
+
+// Valori già usati in una colonna, per l'autocompletamento di cliente e fornitore
+// (spec §2.2: nessuna anagrafica). Distinti, ripuliti dagli spazi, in ordine alfabetico italiano.
+export function valoriUsati(righe, campo) {
+  const trovati = new Set();
+  for (const r of righe) {
+    const s = (r?.[campo] ?? "").toString().trim();
+    if (s) trovati.add(s);
+  }
+  return [...trovati].sort((a, b) => a.localeCompare(b, "it"));
 }
