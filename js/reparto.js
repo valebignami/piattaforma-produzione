@@ -106,11 +106,17 @@ async function aggiorna() {
   byId("rep-login").hidden = !!session;
   byId("rep-negato").hidden = !session || dentro;
   byId("rep-app").hidden = !dentro;
+  // Il confronto e l'aggiornamento di statoPrecedente stanno ATTACCATI, prima di qualunque
+  // altra attesa: al caricamento aggiorna() parte due volte (una diretta e una da
+  // onAuthStateChange, che emette subito la sessione iniziale). Se il segno si scrivesse dopo il
+  // disegno, tutte e due le esecuzioni lo troverebbero ancora vuoto e disegnerebbero l'elenco
+  // degli operatori due volte, con ogni nome doppio.
   const chiave = `${session?.user?.id ?? "—"}/${ruolo ?? "—"}`;
-  if (dentro && chiave !== statoPrecedente) {
+  const cambiato = dentro && chiave !== statoPrecedente;
+  statoPrecedente = chiave;
+  if (cambiato) {
     if (await riprendiOperatore()) vaiA("hub"); else await scegliOperatore();
   }
-  statoPrecedente = chiave;
 }
 
 byId("rep-form-login").addEventListener("submit", async (ev) => {

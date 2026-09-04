@@ -8,12 +8,17 @@ import { byId, sb } from "../db.js";
 import { formattaNumero, oraItaliana, dataBreveItaliana } from "../comune.js";
 
 let canale = null;
+let coda = Promise.resolve();   // le aperture del tab si mettono in fila, non si sovrappongono
 
 // L'interruttore "Mostra rotoli di collaudo" NON vale qui: la linea è una sola e ciò che ci gira
 // sopra va visto sempre, anche in collaudo (come l'esportazione e la proposta di n_prog).
-export async function mostra() {
-  await disegna();
-  await ascolta();
+//
+// Le chiamate si SERIALIZZANO: la shell può chiamare mostra() due volte di fila (al caricamento
+// aggiorna() parte una volta da sola e una da onAuthStateChange), e due esecuzioni sovrapposte
+// aprirebbero due canali in tempo reale con lo stesso nome.
+export function mostra() {
+  coda = coda.then(disegna).then(ascolta).catch((e) => console.error(e));
+  return coda;
 }
 
 function riga(etichetta, valore) {
