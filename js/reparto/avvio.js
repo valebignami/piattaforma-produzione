@@ -27,6 +27,9 @@ const rete = (ctx) => ({ onStato: (s) => ctx.stato(s) });
 
 function passo(n) {
   for (const [i, id] of [[1, "rep-avvio-1"], [2, "rep-avvio-2"], [3, "rep-avvio-3"]]) byId(id).hidden = i !== n;
+  // Tornando al passo 2 si riparte dall'elenco delle schede: il dettaglio dei parametri è di
+  // una scheda sola e lasciarlo aperto farebbe credere di averla già scelta.
+  if (n === 2) byId("rep-avvio-parametri").hidden = true;
   if (n === 1) contesto.impostaIndietro("hub");
   if (n === 2) contesto.impostaIndietro(() => passo(1));
   if (n === 3) contesto.impostaIndietro(() => passo(2));
@@ -115,7 +118,6 @@ async function cerca() {
 async function scegliGrezzo(grezzo, pianificazioneId) {
   scelta = { grezzo, pianificazione_id: pianificazioneId, scheda: null };
   passo(2);
-  byId("rep-avvio-parametri").hidden = true;
   if (schede.length === 0) {
     esito("Carico le schede…");
     const r = await sb.from("schede_lavorazione").select("*");
@@ -188,7 +190,7 @@ function mostraParametri(s) {
   byId("rep-avvio-parametri").hidden = false;
   byId("rep-avvio-parametri").scrollIntoView({ block: "nearest" });
   // "Indietro" dai parametri torna all'elenco delle schede, non alla schermata 1.
-  contesto.impostaIndietro(() => { byId("rep-avvio-parametri").hidden = true; passo(2); });
+  contesto.impostaIndietro(() => passo(2));
 }
 
 // ---------- 3. Pesate ----------

@@ -8,7 +8,8 @@ import { byId, sb, salva } from "../db.js";
 import { lunediDellaSettimana, formattaNumero, oraItaliana, minutiDa, SOGLIA_CONTROLLO_MIN } from "../comune.js";
 
 let contesto = null;
-let inCorso = null;      // la lavorazione aperta, con i dati già letti per il banner
+let inCorso = null;         // la lavorazione aperta, con i dati già letti per il banner
+let messaggioDopo = null;   // il messaggio da mostrare DOPO il ricaricamento dell'hub
 let avviato = false;
 
 function esito(testo, classe = "") {
@@ -33,6 +34,10 @@ export async function mostra(ctx) {
   byId("rep-hub-corso").hidden = !aperta.data;
   if (aperta.data) await disegnaInCorso(aperta.data);
   else await disegnaLibera();
+
+  // Il messaggio di riuscita si scrive SOLO qui, alla fine: disegnaLibera e disegnaInCorso
+  // chiudono con esito(""), e scriverlo prima lo cancellerebbe senza che nessuno lo legga.
+  if (messaggioDopo) { esito(messaggioDopo, "ok"); messaggioDopo = null; }
 }
 
 // ---------- Linea libera: il programma della settimana ----------
@@ -158,8 +163,8 @@ async function confermaAnnullo() {
     byId("rep-annullo-esito").className = "esito errore";
     return;
   }
+  messaggioDopo = "Avvio annullato: la linea è di nuovo libera.";
   contesto.vaiA("hub");
-  esito("Avvio annullato: la linea è di nuovo libera.", "ok");
 }
 
 // ---------- Collegamenti (una volta sola) ----------

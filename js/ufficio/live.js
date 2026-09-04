@@ -13,7 +13,7 @@ let canale = null;
 // sopra va visto sempre, anche in collaudo (come l'esportazione e la proposta di n_prog).
 export async function mostra() {
   await disegna();
-  ascolta();
+  await ascolta();
 }
 
 function riga(etichetta, valore) {
@@ -89,8 +89,10 @@ function servizio(errore = null, classe = "") {
   campo.className = "esito";
 }
 
-function ascolta() {
-  if (canale) sb.removeChannel(canale);          // uno solo per volta, anche tornando sul tab
+async function ascolta() {
+  // Si ASPETTA la chiusura del canale precedente: aprirne un altro con lo stesso nome mentre
+  // il primo sta ancora uscendo lascerebbe due iscrizioni, o farebbe cadere quella nuova.
+  if (canale) { await sb.removeChannel(canale); canale = null; }
   canale = sb.channel("live-lavorazioni")
     .on("postgres_changes", { event: "*", schema: "public", table: "lavorazioni" }, () => disegna())
     .subscribe((stato) => {

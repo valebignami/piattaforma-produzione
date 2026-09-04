@@ -43,7 +43,7 @@ button.principale { min-height: 72px; font-size: 22px; padding: 0 32px; width: 1
 .elenco-righe button.primo { border-color: var(--blu); border-width: 3px; }
 .elenco-righe button:disabled { background: #f1f5f9; }
 .elenco-righe .titolo { display: block; font-weight: 600; font-size: 20px; }
-.elenco-righe .dettaglio { display: block; color: var(--grigio); font-size: 17px; margin-top: 4px; }
+.elenco-righe .dettaglio { display: block; color: var(--grigio); font-size: 18px; margin-top: 4px; }
 
 /* ---------- Hub: banner e azioni ---------- */
 .banner { border: 3px solid var(--verde); border-radius: 12px; padding: 14px 18px; background: #fff; margin-bottom: 20px; }
@@ -54,11 +54,12 @@ button.principale { min-height: 72px; font-size: 22px; padding: 0 32px; width: 1
 
 .azioni { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
 .azioni button { min-height: 88px; font-size: 20px; display: flex; flex-direction: column; gap: 4px; align-items: center; justify-content: center; }
-.prossima { font-size: 15px; font-weight: 400; opacity: .9; }
+.prossima { font-size: 18px; font-weight: 400; opacity: .9; }   /* spec §3.1: mai sotto i 18 px */
 
 /* ---------- Avvio ---------- */
-.interruttore-grande { display: inline-flex; align-items: center; gap: 10px; font-size: 19px; margin: 0 0 12px; color: var(--testo); }
-.interruttore-grande input { width: 28px; height: 28px; min-height: 28px; }
+/* Il bersaglio da toccare è tutta l'etichetta, non il quadratino: minimo 56 px (spec §3.1). */
+.interruttore-grande { display: inline-flex; align-items: center; gap: 12px; min-height: 56px; padding: 0 8px; font-size: 19px; margin: 0 0 12px; color: var(--testo); }
+.interruttore-grande input { width: 32px; height: 32px; min-height: 32px; }
 .cerca { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
 .cerca input { flex: 1; }
 .cerca button { min-height: 56px; }
