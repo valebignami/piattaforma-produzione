@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reparto — Piattaforma Produzione</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/reparto.css">
+  <!-- stessa libreria e stesso integrity di index.html (versione pinnata) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.6/dist/umd/supabase.js"
+          integrity="sha384-SR76iDF5vfiuFuYEigF/LOTQIXTU5SrR3Ij29NELtBswNOxcSLM6iMr8OVRzUycq" crossorigin="anonymous"></script>
+</head>
+<body class="reparto">
+
+  <!-- ---------- Login ---------- -->
+  <main id="rep-login" hidden>
+    <h1>Reparto — Linea 1500</h1>
+    <form id="rep-form-login">
+      <label for="rep-email">Email</label>
+      <input id="rep-email" type="email" autocomplete="username" required>
+      <label for="rep-password">Password</label>
+      <input id="rep-password" type="password" autocomplete="current-password" required>
+      <p><button id="rep-entra" type="submit">Entra</button></p>
+      <p id="rep-messaggio" class="messaggio"></p>
+    </form>
+  </main>
+
+  <!-- ---------- Ruolo sbagliato ---------- -->
+  <main id="rep-negato" hidden>
+    <h1>Reparto — Linea 1500</h1>
+    <p class="messaggio">Questa pagina è del reparto. Per la vista dell'ufficio apri
+      <strong>ufficio.html</strong>.</p>
+    <p><button id="rep-negato-esci" class="secondario" type="button">Esci</button></p>
+  </main>
+
+  <!-- ---------- Applicazione ---------- -->
+  <div id="rep-app" hidden>
+
+    <header class="barra-tablet">
+      <button id="rep-indietro" class="secondario" type="button" hidden>← Indietro</button>
+      <strong id="rep-titolo">Linea 1500</strong>
+      <span id="rep-stato" class="stato-rete"></span>
+      <button id="rep-nome-operatore" class="secondario" type="button">Chi sei?</button>
+      <button id="rep-esci" class="secondario" type="button">Esci</button>
+    </header>
+
+    <!-- ---------- Chi sei ---------- -->
+    <section id="rep-sch-operatore" class="schermata" hidden>
+      <h2>Chi sei?</h2>
+      <p id="rep-operatori-vuoto" class="vuoto" hidden>
+        Nessun operatore in elenco: falli inserire dall'ufficio, in Impostazioni.
+      </p>
+      <div id="rep-elenco-operatori" class="griglia-bottoni"></div>
+    </section>
+
+    <!-- ---------- Hub ---------- -->
+    <section id="rep-sch-hub" class="schermata" hidden>
+      <p id="rep-hub-esito" class="esito"></p>
+
+      <!-- linea libera -->
+      <div id="rep-hub-libera" hidden>
+        <p><button id="rep-hub-avvia" class="principale" type="button">Avvia rotolo</button></p>
+        <h2>In programma questa settimana</h2>
+        <p id="rep-hub-programma-vuoto" class="vuoto" hidden>
+          Niente in programma per questa settimana: usa Avvia rotolo → Cerca altro numero.
+        </p>
+        <div id="rep-hub-programma" class="elenco-righe"></div>
+      </div>
+
+      <!-- lavorazione in corso -->
+      <div id="rep-hub-corso" hidden>
+        <div id="rep-banner" class="banner">
+          <p id="rep-banner-titolo" class="banner-titolo"></p>
+          <p id="rep-banner-dettaglio" class="banner-dettaglio"></p>
+        </div>
+        <div class="azioni">
+          <button id="rep-controllo" type="button" disabled>Controllo<span class="prossima">dalla prossima fase</span></button>
+          <button id="rep-evento" type="button" disabled>Evento<span class="prossima">dalla prossima fase</span></button>
+          <button id="rep-chiudi" type="button" disabled>Chiudi rotolo<span class="prossima">dalla prossima fase</span></button>
+        </div>
+        <p><button id="rep-altro" class="secondario" type="button">Altro…</button></p>
+        <div id="rep-altro-voci" hidden>
+          <p><button id="rep-annulla-avvio" class="secondario" type="button">Annulla avvio</button></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- Avvia rotolo ---------- -->
+    <section id="rep-sch-avvio" class="schermata" hidden>
+      <p id="rep-avvio-esito" class="esito"></p>
+
+      <!-- 1. quale rotolo -->
+      <div id="rep-avvio-1" hidden>
+        <h2>Quale rotolo</h2>
+        <div id="rep-avvio-programma" class="elenco-righe"></div>
+        <h2>Cerca altro numero</h2>
+        <div class="cerca">
+          <input id="rep-avvio-cerca-testo" type="search" inputmode="text" placeholder="numero del rotolo">
+          <button id="rep-avvio-cerca-vai" type="button">Cerca</button>
+        </div>
+        <div id="rep-avvio-cerca-esiti" class="elenco-righe"></div>
+      </div>
+
+      <!-- 2. quale scheda -->
+      <div id="rep-avvio-2" hidden>
+        <h2>Quale scheda</h2>
+        <label class="interruttore-grande" for="rep-avvio-tutte">
+          <input id="rep-avvio-tutte" type="checkbox"> Mostra tutte
+        </label>
+        <div id="rep-avvio-schede" class="elenco-righe"></div>
+        <div id="rep-avvio-parametri" hidden>
+          <h2 id="rep-avvio-parametri-titolo"></h2>
+          <table class="parametri"><tbody id="rep-avvio-parametri-corpo"></tbody></table>
+          <p><button id="rep-avvio-parametri-usa" class="principale" type="button">Usa questa scheda</button></p>
+        </div>
+      </div>
+
+      <!-- 3. pesate -->
+      <div id="rep-avvio-3" hidden>
+        <h2>Pesate</h2>
+        <p id="rep-avvio-riepilogo" class="riepilogo"></p>
+        <label for="rep-avvio-peso-con">Peso con imballo (kg)</label>
+        <input id="rep-avvio-peso-con" type="number" inputmode="decimal" step="any" min="0" required>
+        <label for="rep-avvio-peso-imballo">Peso dell'imballo (kg)</label>
+        <input id="rep-avvio-peso-imballo" type="number" inputmode="decimal" step="any" min="0" value="0">
+        <p id="rep-avvio-netto" class="riepilogo"></p>
+        <label for="rep-avvio-contametri">Contametri iniziale</label>
+        <input id="rep-avvio-contametri" type="number" inputmode="decimal" step="any" min="0" value="0">
+        <p><button id="rep-avvio-conferma" class="principale" type="button">Avvia</button></p>
+      </div>
+    </section>
+
+    <!-- ---------- Annulla avvio ---------- -->
+    <section id="rep-sch-annullo" class="schermata" hidden>
+      <h2>Annulla avvio</h2>
+      <p id="rep-annullo-rotolo" class="riepilogo"></p>
+      <label for="rep-annullo-motivo">Perché lo annulli?</label>
+      <input id="rep-annullo-motivo" type="text" required>
+      <label for="rep-annullo-metri">Metri di nastro consumati</label>
+      <input id="rep-annullo-metri" type="number" inputmode="decimal" step="any" min="0" value="0">
+      <p><button id="rep-annullo-conferma" class="principale" type="button" disabled>Annulla l'avvio</button></p>
+      <p id="rep-annullo-esito" class="esito"></p>
+    </section>
+
+  </div>
+
+  <script type="module" src="js/reparto.js"></script>
+</body>
+</html>
