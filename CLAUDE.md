@@ -7,7 +7,7 @@ Piano fasi: `PIANO_funzionalita.md`. Stato: l'ultimo `STATO_*.md`. Codice, comme
 
 ## Comandi
 ```bash
-node --test tests/                 # funzioni pure + id DOM
+node --test tests/                 # funzioni pure, id DOM, coerenza col file SQL della fixture
 python -m http.server 8000         # servire in locale → http://localhost:8000/index.html
 ```
 Nessun bundler, linter o dipendenza npm: `package.json` contiene solo `"type": "module"`.
@@ -32,9 +32,14 @@ Nessun bundler, linter o dipendenza npm: `package.json` contiene solo `"type": "
 - `git push` su `main` = produzione (GitHub Pages). Solo come passo esplicito della skill.
 - Le regole di dominio stanno in Postgres: vincoli, trigger, viste, RPC in `sql/`.
   `js/comune.js` contiene solo funzioni pure; le tre duplicate (fuoriRange, codiciFigli,
-  bilancioChiusura) sono dichiarate nello spec. Il test di coerenza JS↔DB arriva con la Fase 3
-  (spec §5.6 punto 3); fino ad allora `test-comune.mjs` e `test_regole.sql` usano gli stessi
-  numeri dell'esempio §2.7.
+  bilancioChiusura) sono dichiarate nello spec e dalla Fase 3 sono coperte dal **test di
+  coerenza** (spec §5.6 punto 3): i dati stanno una volta sola, nel JSON fra `$fixture$` e
+  `$fixture$` di `sql/test_coerenza.sql`, e `tests/test-coerenza.mjs` legge quel file. Cambiare
+  i numeri da una parte sola fa fallire l'altra. Una quarta lettura duplicata, dichiarata, è
+  `fermoAperto` (spec §2.5): il giudice restano le RPC, che respingono con "C'è un fermo aperto".
+- `sql/test_coerenza.sql` gira **come `postgres`**, non come `authenticated`: prova le regole di
+  calcolo e chiama gli helper interni `_codici_figli` e `_controlla_figli_e_bilancio`, revocati
+  al client. È l'eccezione rispetto a `test_regole.sql`, che prova i permessi.
 - `js/db.js` è l'unico file che conosce Supabase (client, `salva()`, sessione). Nel front-end
   va SOLO la chiave publishable; la chiave `service_role` non deve mai comparire.
 - Mai rieseguire una sezione di `000_setup.sql` (ogni sezione ha la guardia): le correzioni
@@ -45,6 +50,12 @@ Nessun bundler, linter o dipendenza npm: `package.json` contiene solo `"type": "
   (senza `fornitore` e `rif_bolla`). Nessuna stampa dal tablet.
 - Le `note` di una lavorazione si scrivono solo su lavorazioni `chiuse`; per le annullate il
   posto è `motivo_annullo`.
+- `durata_min` del fermo la scrivono **solo i due trigger**: il client non ha il grant e non deve
+  mandarla. La ripartenza è un insert in `eventi` con `fermo_id` e la **stessa** `lavorazione_id`
+  del fermo, che il trigger confronta.
+- Il **capoturno** è una distinzione del solo front-end (spec §2.9): il database non lo conosce e
+  la policy lascia correggere controlli ed eventi a tutto il reparto, finché la lavorazione è
+  aperta. Capoturno del pilota: **Marco** (PIANO §2).
 - Le date: mai `toISOString()` né `slice(0,10)` su un timestamp — darebbero il giorno UTC, cioè
   il giorno prima per tutto ciò che accade dopo le 22. Si usano `dataBreveItaliana`,
   `dataLungaItaliana`, `lunediDellaSettimana`, `settimanaSpostata` di `comune.js`, che lavorano
@@ -61,6 +72,10 @@ Nessun bundler, linter o dipendenza npm: `package.json` contiene solo `"type": "
   grezzo: un rotolo sbagliato si corregge con Modifica finché è `grezzo`.
 - `sql/test_regole.sql` gira come `authenticated` con `request.jwt.claims` impostato, in
   `begin … rollback`: l'unico risultato atteso è `TUTTI I TEST PASSATI`.
+- **La temperatura di fissaggio non viene mai segnalata fuori range**: le 51 schede hanno il solo
+  minimo, e la regola dello spec §2.6 (vista `controlli_scostamenti` e `fuoriRange` insieme)
+  chiede minimo **e** massimo. Limite dichiarato e verificato dal test di coerenza; cambiarlo è
+  una modifica allo spec approvato, non una correzione da fare di passaggio.
 - Niente cache-buster: Pages serve con max-age=600.
 - Know-how fuori dal repo (gitignorato, solo nella cartella locale): `docs/riferimenti/`,
   `sql/seed_schede.sql`, `sql/seed_difetti.sql`. Prima di ogni push:
@@ -99,16 +114,18 @@ index.html  ufficio.html  reparto.html  stampa.html
 css/base.css  css/ufficio.css  css/reparto.css  css/stampa.css
 js/comune.js  js/db.js  js/index.js  js/ufficio.js  js/reparto.js  js/stampa.js
 js/ufficio/magazzino.js  js/ufficio/pianificazione.js  js/ufficio/live.js  js/ufficio/impostazioni.js
-js/reparto/hub.js  js/reparto/avvio.js
+js/reparto/hub.js  js/reparto/avvio.js  js/reparto/controllo.js  js/reparto/evento.js
+js/reparto/ripartenza.js  js/reparto/ultimi.js
 tools/importa_schede.py
-sql/000_setup.sql  sql/003_…  sql/seed_collaudo.sql  sql/test_regole.sql
-tests/test-comune.mjs  tests/test-dom-ids.mjs
+sql/000_setup.sql  sql/003_…  sql/seed_collaudo.sql  sql/test_regole.sql  sql/test_coerenza.sql
+tests/test-comune.mjs  tests/test-dom-ids.mjs  tests/test-coerenza.mjs
 docs/superpowers/{specs,plans,reviews}/   STATO_*.md   PIANO_funzionalita.md
 ```
 Ogni scheda dell'ufficio e ogni schermata del reparto è un modulo con una sola funzione
 `mostra(ctx)`; `js/ufficio.js` e `js/reparto.js` sono le shell (sessione, ruolo, schede o
 schermate). La Fase 1 non ha aggiunto migrazioni; la Fase 2 ha aggiunto solo il seed delle
-schede, senza toccare lo schema.
+schede, senza toccare lo schema; **la Fase 3 non ha aggiunto nessuna migrazione**: tabelle,
+policy, grant, viste, trigger e realtime della Fase 0 coprivano già controlli ed eventi.
 
 `tools/importa_schede.py` è l'unico programma del repo che non gira con `node`: serve Python e
 `python-docx`, si esegue a mano e riconosce i formati delle celle, non un elenco di valori.
