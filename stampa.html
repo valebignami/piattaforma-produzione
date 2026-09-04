@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stampa — Piattaforma Produzione</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/stampa.css">
+  <!-- stessa libreria e stesso integrity di index.html (versione pinnata) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.6/dist/umd/supabase.js"
+          integrity="sha384-SR76iDF5vfiuFuYEigF/LOTQIXTU5SrR3Ij29NELtBswNOxcSLM6iMr8OVRzUycq" crossorigin="anonymous"></script>
+</head>
+<body>
+
+  <!-- ---------- Login ---------- -->
+  <main id="stampa-login" hidden>
+    <h1>Stampa</h1>
+    <form id="stampa-form-login">
+      <label for="stampa-email">Email</label>
+      <input id="stampa-email" type="email" autocomplete="username" required>
+      <label for="stampa-password">Password</label>
+      <input id="stampa-password" type="password" autocomplete="current-password" required>
+      <p><button id="stampa-entra" type="submit">Entra</button></p>
+      <p id="stampa-messaggio" class="messaggio"></p>
+    </form>
+  </main>
+
+  <!-- ---------- Ruolo sbagliato ---------- -->
+  <main id="stampa-negato" hidden>
+    <h1>Stampa</h1>
+    <p class="messaggio">Le schede si stampano dall'ufficio: questa pagina è riservata all'ufficio.</p>
+  </main>
+
+  <!-- ---------- Il foglio ---------- -->
+  <div id="stampa-contenuto" hidden>
+    <div class="comandi-stampa">
+      <button id="stampa-avvia" type="button">Stampa</button>
+      <span id="stampa-errore" class="messaggio"></span>
+    </div>
+
+    <article class="foglio" id="stampa-foglio">
+      <header>
+        <p class="azienda">Overland S.r.l. — Linea 1500</p>
+        <h1>Scheda rotolo grezzo</h1>
+        <p class="codice" id="stampa-n-prog"></p>
+      </header>
+
+      <!-- Sempre vuota, anche se il rotolo è pianificato o in linea (procedure §8.3) -->
+      <p class="lavorazione-vuota">Lavorazione: ______________________________________________</p>
+
+      <table class="dati"><tbody id="stampa-anagrafica"></tbody></table>
+
+      <section id="stampa-figli" hidden>
+        <h2>Già lavorato da questo rotolo</h2>
+        <table class="dati elenco-figli">
+          <thead><tr><th>Codice</th><th>Lavorazione</th><th class="num">Kg netti</th><th>Data</th></tr></thead>
+          <tbody id="stampa-figli-corpo"></tbody>
+        </table>
+      </section>
+
+      <table class="dati residuo"><tbody id="stampa-residuo"></tbody></table>
+    </article>
+  </div>
+
+  <script type="module" src="js/stampa.js"></script>
+</body>
+</html>

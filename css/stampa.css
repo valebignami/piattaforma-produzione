@@ -1,0 +1,34 @@
+/* Piattaforma Produzione — stampa. A4 verticale, margini 15 mm.
+   Il foglio finisce in cartelletta con il rotolo: pochi dati, grandi e leggibili. */
+
+@page { size: A4 portrait; margin: 15mm; }
+
+.comandi-stampa { padding: 16px 20px; display: flex; align-items: center; gap: 16px; }
+.comandi-stampa button { min-height: 40px; font-size: 15px; padding: 0 20px; }
+
+.foglio {
+  background: #fff; max-width: 190mm; margin: 0 auto 40px; padding: 16mm;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, .08); color: #000;
+}
+.foglio header { border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 16px; }
+.foglio .azienda { margin: 0; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; }
+.foglio h1 { font-size: 20px; margin: 4px 0 0; }
+.foglio .codice { font-size: 34px; font-weight: 700; margin: 8px 0 0; letter-spacing: .02em; }
+.foglio h2 { font-size: 15px; margin: 20px 0 6px; }
+
+/* La riga della lavorazione si compila a penna in reparto: resta sempre vuota. */
+.lavorazione-vuota { font-size: 16px; margin: 0 0 18px; }
+
+table.dati { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.dati th, table.dati td { padding: 5px 6px; border-bottom: 1px solid #d0d0d0; text-align: left; vertical-align: top; }
+table.dati tbody th { width: 42%; font-weight: 600; color: #333; }
+table.dati td.num, table.dati th.num { text-align: right; }
+table.elenco-figli thead th { border-bottom: 1.5px solid #000; width: auto; }
+table.residuo { margin-top: 20px; border-top: 2px solid #000; font-size: 16px; }
+table.residuo tbody th { font-weight: 700; color: #000; }
+
+@media print {
+  body { background: #fff; }
+  .comandi-stampa { display: none; }
+  .foglio { box-shadow: none; margin: 0; padding: 0; max-width: none; }
+}

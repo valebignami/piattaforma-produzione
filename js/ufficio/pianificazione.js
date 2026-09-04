@@ -1,0 +1,288 @@
+// ============================================================
+// pianificazione.js — tab Pianificazione (spec §4.2, PIANO Fase 1 voce 4).
+// La settimana viaggia sempre come stringa AAAA-MM-GG (mai toISOString: sposterebbe il giorno).
+// "Già lavorata" è la definizione dello spec §2.3: una lavorazione non annullata che punta la riga.
+// ============================================================
+import { byId, sb, salva } from "../db.js";
+import { lunediDellaSettimana, settimanaSpostata, schedeCompatibili, formattaNumero, dataLungaItaliana } from "../comune.js";
+
+// pianificazione ha unique (settimana, posizione): due righe non possono occupare lo stesso posto.
+const DOPPIONE = { 23505: "Questa posizione nella settimana è già occupata: ricarico il programma." };
+const COLLEGATA = { 23503: "Questa riga ha già una lavorazione (anche se annullata): resta come storia del programma." };
+
+let settimana = lunediDellaSettimana(new Date());
+let schede = [];
+let contesto = { mostraCollaudo: false };
+let occupato = false;      // vero durante i tre passi di uno scambio: blocca ▲▼ e Togli
+let avviato = false;
+
+function esito(testo, classe = "") {
+  byId("pian-esito").textContent = testo;
+  byId("pian-esito").className = "esito " + classe;
+}
+
+// salva() ritenta da sola quando la rete manca (spec §3.9): senza questo l'utente vedrebbe
+// "Salvo…" all'infinito senza capire perché.
+const RETE = { onStato: (s) => { if (s === "attesa") esito("In attesa di rete… riprovo", "errore"); } };
+
+export async function mostra(ctx) {
+  contesto = ctx;
+  collega();
+  byId("pian-settimana").textContent = `Settimana del lunedì ${dataLungaItaliana(settimana)}`;
+  esito("Carico…");
+
+  if (schede.length === 0) {
+    const r = await sb.from("schede_lavorazione").select("*");
+    if (r.error) return esito("Non riesco a leggere le schede di lavorazione.", "errore");
+    schede = r.data;
+  }
+
+  // Sinistra: i grezzi ancora a magazzino. Qui l'interruttore dei rotoli di collaudo vale.
+  let qd = sb.from("rotoli_grezzi").select("*").eq("stato", "grezzo").order("n_prog");
+  if (!contesto.mostraCollaudo) qd = qd.not("n_prog", "like", "COLLAUDO%");
+
+  // Destra: TUTTE le righe della settimana, collaudo compreso: nasconderne lascerebbe buchi
+  // nelle posizioni e uno scambio ▲▼ salterebbe una riga invisibile.
+  const [disponibili, sequenza] = await Promise.all([
+    qd,
+    sb.from("pianificazione").select("*, rotoli_grezzi(*)").eq("settimana", settimana).order("posizione"),
+  ]);
+  if (disponibili.error || sequenza.error) return esito("Non riesco a leggere il programma.", "errore");
+
+  const ids = sequenza.data.map((p) => p.id);
+  let lavorate = new Set();
+  if (ids.length > 0) {
+    const l = await sb.from("lavorazioni").select("pianificazione_id").in("pianificazione_id", ids).neq("stato", "annullata");
+    if (l.error) return esito("Non riesco a leggere le lavorazioni.", "errore");
+    lavorate = new Set(l.data.map((r) => r.pianificazione_id));
+  }
+
+  disegnaDisponibili(disponibili.data);
+  disegnaSequenza(sequenza.data, lavorate);
+  esito("");
+}
+
+// ---------- Sinistra: grezzi disponibili ----------
+function disegnaDisponibili(righe) {
+  const contenitore = byId("pian-disponibili");
+  contenitore.textContent = "";
+  if (righe.length === 0) {
+    contenitore.append(paragrafo("Nessun rotolo a magazzino.", "vuoto"));
+    return;
+  }
+  for (const g of righe) {
+    const scheda = document.createElement("div");
+    scheda.className = "scheda-grezzo";
+    scheda.append(paragrafo(g.n_prog, "titolo"));
+    const misure = `${formattaNumero(g.larghezza_mm)} × ${formattaNumero(g.spessore_mm, 2)} mm · ${g.lega ?? "lega non indicata"}`;
+    // Un residuo si riconosce dai kg residui valorizzati (spec §3.4).
+    const residuo = g.kg_residui == null ? ""
+      : ` · residuo ${formattaNumero(g.kg_residui)} kg · ${formattaNumero(g.metri_stimati)} m`;
+    scheda.append(paragrafo(misure + residuo, "dettaglio"));
+    const tasto = document.createElement("button");
+    tasto.type = "button";
+    tasto.textContent = "Aggiungi al programma";
+    tasto.disabled = occupato;
+    tasto.addEventListener("click", () => aggiungi(g));
+    scheda.append(tasto);
+    contenitore.append(scheda);
+  }
+}
+
+function paragrafo(testo, classe) {
+  const p = document.createElement("p");
+  p.textContent = testo;
+  if (classe) p.className = classe;
+  return p;
+}
+
+// ---------- Destra: la sequenza ----------
+function disegnaSequenza(righe, lavorate) {
+  const contenitore = byId("pian-sequenza");
+  contenitore.textContent = "";
+  if (righe.length === 0) {
+    contenitore.append(paragrafo("Nessun rotolo in programma per questa settimana.", "vuoto"));
+    return;
+  }
+  righe.forEach((p, i) => {
+    const g = p.rotoli_grezzi ?? {};
+    const lavorata = lavorate.has(p.id);
+    const scheda = document.createElement("div");
+    scheda.className = "riga-programma" + (lavorata ? " lavorata" : "") + (p.posizione < 0 ? " fuori-sequenza" : "");
+    // Una riga fuori sequenza non ha un posto nel programma: non le si dà un numero d'ordine.
+    const numero = p.posizione < 0 ? "—" : `${i + 1}.`;
+    scheda.append(paragrafo(`${numero} ${g.n_prog ?? "rotolo mancante"}`, "titolo"));
+    scheda.append(paragrafo(
+      `${formattaNumero(g.larghezza_mm)} × ${formattaNumero(g.spessore_mm, 2)} mm · ${g.cliente ?? "cliente non indicato"}`
+      + (lavorata ? " · già lavorata" : ""), "dettaglio"));
+    if (p.posizione < 0) {
+      scheda.append(paragrafo("Questa riga è rimasta fuori sequenza: toglila e riaggiungila in fondo al programma.", "avviso-riga"));
+    }
+
+    const campi = document.createElement("div");
+    campi.className = "campi";
+    campi.append(
+      campoScheda(p, g, lavorata),
+      campoTesto(p, "suddivisione_prevista", "Suddivisione prevista", lavorata),
+      campoTesto(p, "note", "Nota", lavorata),
+      comandiRiga(p, i, righe, lavorata, lavorate),
+    );
+    scheda.append(campi);
+    contenitore.append(scheda);
+  });
+}
+
+function campoScheda(p, g, lavorata) {
+  const div = document.createElement("div");
+  const et = document.createElement("label");
+  et.textContent = "Scheda prevista";
+  const sel = document.createElement("select");
+  sel.disabled = lavorata || occupato;
+  const compatibili = byId("pian-tutte").checked ? schede : schedeCompatibili(schede, g.spessore_mm, g.larghezza_mm);
+  const vuota = document.createElement("option");
+  vuota.value = "";
+  vuota.textContent = schede.length === 0 ? "— nessuna scheda caricata —" : "— nessuna —";
+  sel.append(vuota);
+  for (const s of compatibili) {
+    const o = document.createElement("option");
+    o.value = s.id;
+    o.textContent = `${s.lavorazione} (${formattaNumero(s.micron)} my)`;
+    sel.append(o);
+  }
+  // Una scheda già scelta ma non più compatibile resterebbe invisibile: la si aggiunge in coda.
+  if (p.scheda_lavorazione_id && !compatibili.some((s) => s.id === p.scheda_lavorazione_id)) {
+    const s = schede.find((x) => x.id === p.scheda_lavorazione_id);
+    const o = document.createElement("option");
+    o.value = p.scheda_lavorazione_id;
+    o.textContent = s ? `${s.lavorazione} (fuori misura)` : "scheda non più disponibile";
+    sel.append(o);
+  }
+  sel.value = p.scheda_lavorazione_id ?? "";
+  sel.addEventListener("change", () => scrivi(p.id, { scheda_lavorazione_id: sel.value || null }));
+  div.append(et, sel);
+  return div;
+}
+
+function campoTesto(p, colonna, etichetta, lavorata) {
+  const div = document.createElement("div");
+  const et = document.createElement("label");
+  et.textContent = etichetta;
+  const inp = document.createElement("input");
+  inp.type = "text";
+  inp.value = p[colonna] ?? "";
+  inp.disabled = lavorata || occupato;
+  inp.addEventListener("blur", async () => {
+    const nuovo = inp.value.trim() || null;
+    if (nuovo === (p[colonna] ?? null)) return;
+    // La riga in memoria si aggiorna solo a scrittura riuscita: senza, ogni uscita dal campo
+    // rimanderebbe lo stesso update.
+    if (await scrivi(p.id, { [colonna]: nuovo })) p[colonna] = nuovo;
+  });
+  div.append(et, inp);
+  return div;
+}
+
+// Una riga si può spostare solo se non è già stata lavorata (spec: i comandi delle righe
+// lavorate sono disattivati) e se non è rimasta fuori sequenza. Uno scambio deve avere DUE righe
+// spostabili: scambiare con una riga lavorata potrebbe lasciarla in appoggio, e da lì non
+// uscirebbe più, perché Togli su una riga lavorata è vietato dalla chiave esterna.
+const spostabile = (p, lavorate) => p != null && p.posizione >= 0 && !lavorate.has(p.id);
+
+function comandiRiga(p, i, righe, lavorata, lavorate) {
+  const div = document.createElement("div");
+  div.className = "comandi-riga";
+  const io = !occupato && spostabile(p, lavorate);
+  const su = tastoRiga("▲", !io || !spostabile(righe[i - 1], lavorate), () => scambia(p, righe[i - 1], righe));
+  const giu = tastoRiga("▼", !io || !spostabile(righe[i + 1], lavorate), () => scambia(p, righe[i + 1], righe));
+  const togli = tastoRiga("Togli", lavorata || occupato, () => rimuovi(p));
+  togli.className = "secondario";
+  div.append(su, giu, togli);
+  return div;
+}
+
+function tastoRiga(testo, disabilitato, azione) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.textContent = testo;
+  b.disabled = disabilitato;
+  b.addEventListener("click", azione);
+  return b;
+}
+
+// ---------- Scritture ----------
+// Il messaggio si scrive SEMPRE dopo l'eventuale mostra(): mostra() chiude con esito(""), e
+// scriverlo prima lo cancellerebbe senza che nessuno lo legga.
+async function scrivi(id, campi, messaggi = DOPPIONE) {
+  esito("Salvo…");
+  const r = await salva(() => sb.from("pianificazione").update(campi).eq("id", id), { ...RETE, messaggi });
+  if (!r.ok) { await mostra(contesto); esito(r.errore, "errore"); return false; }
+  esito("Salvato.", "ok");
+  return true;
+}
+
+async function aggiungi(grezzo) {
+  esito("Aggiungo…");
+  const { data, error } = await sb.from("pianificazione").select("posizione").eq("settimana", settimana);
+  if (error) return esito("Non riesco a leggere il programma.", "errore");
+  const posizione = Math.max(0, ...data.map((r) => r.posizione)) + 1;
+  const r = await salva(() => sb.from("pianificazione")
+    .insert({ settimana, posizione, rotolo_grezzo_id: grezzo.id }), { ...RETE, messaggi: DOPPIONE });
+  if (!r.ok) return esito(r.errore, "errore");
+  await mostra(contesto);
+  esito(`${grezzo.n_prog} aggiunto al programma.`, "ok");
+}
+
+async function rimuovi(p) {
+  const r = await salva(() => sb.from("pianificazione").delete().eq("id", p.id), { ...RETE, messaggi: COLLEGATA });
+  if (!r.ok) return esito(r.errore, "errore");
+  await mostra(contesto);
+  esito("Riga tolta dal programma.", "ok");
+}
+
+// Scambio di posizione in tre passi: unique (settimana, posizione) vieta lo scambio diretto e
+// PostgREST non ha transazioni. Durante i tre passi tutti i comandi della sequenza sono
+// disabilitati, così non si sovrappongono due scambi.
+//
+// La posizione di appoggio è più bassa di ogni posizione in uso nella settimana (in valore
+// assoluto), quindi certamente libera: usare -|posizione di A| non basterebbe, perché se A è già
+// in appoggio da uno scambio interrotto il secondo passo tenterebbe di portarci anche B e
+// violerebbe il vincolo. Per lo stesso motivo ▲▼ è disabilitato sulle righe fuori sequenza: si
+// recuperano con Togli e riaggiungi.
+//
+// Se un passo fallisce si prova a rimettere A dov'era (la sua posizione è ancora libera se il
+// guasto è stato al secondo passo, che è il caso frequente), poi si ricarica dal database.
+async function scambia(a, b, righe) {
+  if (!b || occupato || a.posizione < 0 || b.posizione < 0) return;
+  occupato = true;
+  await mostra(contesto);                       // ridisegna con i comandi disabilitati
+  esito("Sposto…");
+  const appoggio = -(1 + Math.max(0, ...righe.map((r) => Math.abs(r.posizione))));
+  const passi = [
+    [a.id, { posizione: appoggio }],
+    [b.id, { posizione: a.posizione }],
+    [a.id, { posizione: b.posizione }],
+  ];
+  let fermo = null;
+  for (const [id, campi] of passi) {
+    const r = await salva(() => sb.from("pianificazione").update(campi).eq("id", id), { ...RETE, messaggi: DOPPIONE });
+    if (!r.ok) { fermo = r.errore; break; }
+  }
+  if (fermo) {
+    // Rimessa a posto: riesce se il guasto è stato al secondo passo (la posizione di A è ancora
+    // libera). Se fallisce anche questa, A resta in appoggio e la sequenza lo dice con l'avviso.
+    const r = await sb.from("pianificazione").update({ posizione: a.posizione }).eq("id", a.id);
+    if (r.error) fermo += " La riga è rimasta fuori sequenza: toglila e riaggiungila.";
+  }
+  occupato = false;
+  await mostra(contesto);
+  esito(fermo ?? "Spostato.", fermo ? "errore" : "ok");
+}
+
+// ---------- Collegamenti (una volta sola) ----------
+function collega() {
+  if (avviato) return;
+  avviato = true;
+  byId("pian-prec").addEventListener("click", () => { settimana = settimanaSpostata(settimana, -1); mostra(contesto); });
+  byId("pian-succ").addEventListener("click", () => { settimana = settimanaSpostata(settimana, 1); mostra(contesto); });
+  byId("pian-tutte").addEventListener("change", () => mostra(contesto));
+}

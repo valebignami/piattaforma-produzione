@@ -3,7 +3,14 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const COPPIE = [["js/index.js", "index.html"]];
+const COPPIE = [
+  ["js/index.js", "index.html"],
+  ["js/ufficio.js", "ufficio.html"],
+  ["js/ufficio/magazzino.js", "ufficio.html"],
+  ["js/ufficio/pianificazione.js", "ufficio.html"],
+  ["js/ufficio/impostazioni.js", "ufficio.html"],
+  ["js/stampa.js", "stampa.html"],
+];
 
 for (const [js, html] of COPPIE) {
   test(`${js}: gli id cercati esistono in ${html}`, () => {

@@ -1,0 +1,78 @@
+/* Piattaforma Produzione — ufficio (desktop).
+   Le regole di ergonomia dello spec §3.1 (tasti ≥ 56 px, testo ≥ 18 px, elenchi come bottoni)
+   valgono per il TABLET, cioè per reparto.html. Qui si lavora con mouse e tastiera su tabelle
+   fitte: base.css resta la base, queste regole la stringono per l'ufficio. */
+
+body.ufficio { font-size: 15px; }
+body.ufficio main { max-width: 480px; }        /* login e "non autorizzato" restano stretti */
+
+/* ---------- Barra in alto ---------- */
+.barra {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 10px 20px; background: #fff; border-bottom: 1px solid #e2e8f0;
+  position: sticky; top: 0; z-index: 2;
+}
+.barra > strong { font-size: 1rem; }
+.barra .interruttore { margin-left: auto; }
+.tab { display: flex; gap: 4px; }
+.tab-voce {
+  min-height: 36px; font-size: 15px; padding: 0 14px; border-radius: 8px;
+  background: transparent; color: var(--testo);
+}
+.tab-voce[aria-selected="true"] { background: var(--blu); color: #fff; }
+.interruttore { display: inline-flex; align-items: center; gap: 6px; color: var(--grigio); }
+.interruttore input { width: auto; min-height: 0; }
+button.piccolo { min-height: 36px; font-size: 15px; padding: 0 14px; }
+
+/* ---------- Pannelli ---------- */
+.pannello { padding: 20px; }
+.pannello h2 { font-size: 1.05rem; margin: 20px 0 8px; }
+.pannello h2:first-child { margin-top: 0; }
+.comandi { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.comandi label { margin: 0; }
+.comandi button { min-height: 40px; font-size: 15px; padding: 0 16px; }
+.esito { color: var(--grigio); min-height: 1.2em; }
+.esito.ok { color: var(--verde); }
+.esito.errore { color: var(--rosso); }
+.vuoto { color: var(--grigio); font-style: italic; }
+
+/* ---------- Tabelle ---------- */
+table.elenco { width: 100%; border-collapse: collapse; background: #fff; font-size: 14px; }
+table.elenco th, table.elenco td { padding: 6px 8px; border-bottom: 1px solid #e2e8f0; text-align: left; white-space: nowrap; }
+table.elenco th { background: #f1f5f9; font-weight: 600; position: sticky; top: 57px; }
+table.elenco td.num, table.elenco th.num { text-align: right; }
+table.elenco tr:hover td { background: #f8fafc; }
+table.elenco button { min-height: 30px; font-size: 13px; padding: 0 10px; }
+td .stato { padding: 1px 8px; border-radius: 999px; font-size: 12px; background: #e2e8f0; }
+td .stato.grezzo { background: #dcfce7; color: #14532d; }
+td .stato.in_lavorazione { background: #dbeafe; color: #1e3a8a; }
+td .stato.esaurito { background: #e2e8f0; color: #334155; }
+
+/* ---------- Moduli ---------- */
+#mag-form { background: #fff; padding: 16px 20px; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 20px; }
+#mag-form h2 { margin-top: 0; }
+.griglia { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 4px 16px; }
+.griglia .larga { grid-column: 1 / -1; }
+.griglia input, .griglia select, .comandi select, #imp-nuovo input, #imp-nuovo select {
+  min-height: 36px; font-size: 15px; width: 100%;
+}
+.comandi select, #imp-nuovo select { width: auto; }
+#mag-form button, #imp-nuovo button { min-height: 40px; font-size: 15px; padding: 0 18px; }
+#imp-nuovo { background: #fff; padding: 12px 20px; border: 1px solid #e2e8f0; border-radius: 12px; max-width: 420px; margin-bottom: 16px; }
+
+/* ---------- Pianificazione ---------- */
+.due-colonne { display: grid; grid-template-columns: minmax(260px, 1fr) 2fr; gap: 24px; align-items: start; }
+.scheda-grezzo, .riga-programma {
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 12px; margin-bottom: 8px;
+}
+.scheda-grezzo .titolo, .riga-programma .titolo { font-weight: 600; }
+.scheda-grezzo .dettaglio, .riga-programma .dettaglio { color: var(--grigio); font-size: 13px; }
+.riga-programma.lavorata { opacity: .6; }
+.riga-programma.lavorata .titolo { text-decoration: line-through; }
+.riga-programma.fuori-sequenza { border-color: var(--rosso); }
+.riga-programma .campi { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 8px; align-items: end; margin-top: 8px; }
+.riga-programma .campi input, .riga-programma .campi select { min-height: 34px; font-size: 14px; width: 100%; }
+.riga-programma .campi label { margin: 0 0 2px; font-size: 12px; }
+.riga-programma button, .scheda-grezzo button { min-height: 32px; font-size: 13px; padding: 0 10px; }
+.riga-programma .comandi-riga { display: flex; gap: 4px; }
+.avviso-riga { color: var(--rosso); font-size: 13px; margin: 6px 0 0; }
