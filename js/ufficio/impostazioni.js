@@ -20,6 +20,9 @@ function esito(testo, classe = "") {
   byId("imp-esito").className = "esito " + classe;
 }
 
+// salva() ritenta da sola quando la rete manca (spec §3.9).
+const RETE = { onStato: (s) => { if (s === "attesa") esito("In attesa di rete… riprovo", "errore"); } };
+
 // ---------- Operatori ----------
 export async function mostra() {
   collega();
@@ -71,7 +74,7 @@ function disegna(righe) {
 
 async function scrivi(id, campi, messaggi = {}) {
   esito("Salvo…");
-  const r = await salva(() => sb.from("operatori").update(campi).eq("id", id), { messaggi });
+  const r = await salva(() => sb.from("operatori").update(campi).eq("id", id), { ...RETE, messaggi });
   // Il messaggio si scrive dopo mostra(), che chiude con esito("") e lo cancellerebbe.
   await mostra();
   esito(r.ok ? "Salvato." : r.errore, r.ok ? "ok" : "errore");
@@ -84,7 +87,7 @@ async function aggiungi(ev) {
   byId("imp-aggiungi").disabled = true;
   esito("Aggiungo…");
   const r = await salva(() => sb.from("operatori")
-    .insert({ nome, ruolo: byId("imp-ruolo").value }), { messaggi: NOME_DOPPIO });
+    .insert({ nome, ruolo: byId("imp-ruolo").value }), { ...RETE, messaggi: NOME_DOPPIO });
   byId("imp-aggiungi").disabled = false;
   if (!r.ok) return esito(r.errore, "errore");
   byId("imp-nuovo").reset();

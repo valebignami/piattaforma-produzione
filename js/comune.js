@@ -183,3 +183,21 @@ export function valoriUsati(righe, campo) {
   }
   return [...trovati].sort((a, b) => a.localeCompare(b, "it"));
 }
+
+// Date da mostrare. Una colonna "date" arriva come "AAAA-MM-GG" e si legge com'è; un
+// "timestamptz" arriva con l'ora e va convertito al fuso locale: tagliarne i primi dieci
+// caratteri darebbe la data UTC, cioè il giorno prima per tutto ciò che accade dopo le 22.
+export function dataBreveItaliana(valore) {
+  if (valore == null || valore === "") return "—";
+  const s = String(valore);
+  const d = /^\d{4}-\d{2}-\d{2}$/.test(s) ? aData(s) : new Date(s);
+  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString("it-IT");
+}
+
+export function dataLungaItaliana(valore) {
+  if (valore == null || valore === "") return "—";
+  const s = String(valore);
+  const d = /^\d{4}-\d{2}-\d{2}$/.test(s) ? aData(s) : new Date(s);
+  return Number.isNaN(d.getTime()) ? "—"
+    : d.toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" });
+}

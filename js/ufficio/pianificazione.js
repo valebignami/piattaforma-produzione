@@ -4,7 +4,7 @@
 // "Già lavorata" è la definizione dello spec §2.3: una lavorazione non annullata che punta la riga.
 // ============================================================
 import { byId, sb, salva } from "../db.js";
-import { lunediDellaSettimana, settimanaSpostata, schedeCompatibili, formattaNumero } from "../comune.js";
+import { lunediDellaSettimana, settimanaSpostata, schedeCompatibili, formattaNumero, dataLungaItaliana } from "../comune.js";
 
 // pianificazione ha unique (settimana, posizione): due righe non possono occupare lo stesso posto.
 const DOPPIONE = { 23505: "Questa posizione nella settimana è già occupata: ricarico il programma." };
@@ -21,14 +21,14 @@ function esito(testo, classe = "") {
   byId("pian-esito").className = "esito " + classe;
 }
 
-const inItaliano = (iso) =>
-  new Date(...iso.split("-").map((n, i) => (i === 1 ? Number(n) - 1 : Number(n))))
-    .toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" });
+// salva() ritenta da sola quando la rete manca (spec §3.9): senza questo l'utente vedrebbe
+// "Salvo…" all'infinito senza capire perché.
+const RETE = { onStato: (s) => { if (s === "attesa") esito("In attesa di rete… riprovo", "errore"); } };
 
 export async function mostra(ctx) {
   contesto = ctx;
   collega();
-  byId("pian-settimana").textContent = `Settimana del lunedì ${inItaliano(settimana)}`;
+  byId("pian-settimana").textContent = `Settimana del lunedì ${dataLungaItaliana(settimana)}`;
   esito("Carico…");
 
   if (schede.length === 0) {
@@ -64,28 +64,28 @@ export async function mostra(ctx) {
 
 // ---------- Sinistra: grezzi disponibili ----------
 function disegnaDisponibili(righe) {
-  const box = byId("pian-disponibili");
-  box.textContent = "";
+  const contenitore = byId("pian-disponibili");
+  contenitore.textContent = "";
   if (righe.length === 0) {
-    box.append(paragrafo("Nessun rotolo a magazzino.", "vuoto"));
+    contenitore.append(paragrafo("Nessun rotolo a magazzino.", "vuoto"));
     return;
   }
   for (const g of righe) {
-    const card = document.createElement("div");
-    card.className = "scheda-grezzo";
-    card.append(paragrafo(g.n_prog, "titolo"));
+    const scheda = document.createElement("div");
+    scheda.className = "scheda-grezzo";
+    scheda.append(paragrafo(g.n_prog, "titolo"));
     const misure = `${formattaNumero(g.larghezza_mm)} × ${formattaNumero(g.spessore_mm, 2)} mm · ${g.lega ?? "lega non indicata"}`;
     // Un residuo si riconosce dai kg residui valorizzati (spec §3.4).
     const residuo = g.kg_residui == null ? ""
       : ` · residuo ${formattaNumero(g.kg_residui)} kg · ${formattaNumero(g.metri_stimati)} m`;
-    card.append(paragrafo(misure + residuo, "dettaglio"));
+    scheda.append(paragrafo(misure + residuo, "dettaglio"));
     const tasto = document.createElement("button");
     tasto.type = "button";
     tasto.textContent = "Aggiungi al programma";
     tasto.disabled = occupato;
     tasto.addEventListener("click", () => aggiungi(g));
-    card.append(tasto);
-    box.append(card);
+    scheda.append(tasto);
+    contenitore.append(scheda);
   }
 }
 
@@ -98,23 +98,25 @@ function paragrafo(testo, classe) {
 
 // ---------- Destra: la sequenza ----------
 function disegnaSequenza(righe, lavorate) {
-  const box = byId("pian-sequenza");
-  box.textContent = "";
+  const contenitore = byId("pian-sequenza");
+  contenitore.textContent = "";
   if (righe.length === 0) {
-    box.append(paragrafo("Nessun rotolo in programma per questa settimana.", "vuoto"));
+    contenitore.append(paragrafo("Nessun rotolo in programma per questa settimana.", "vuoto"));
     return;
   }
   righe.forEach((p, i) => {
     const g = p.rotoli_grezzi ?? {};
     const lavorata = lavorate.has(p.id);
-    const card = document.createElement("div");
-    card.className = "riga-programma" + (lavorata ? " lavorata" : "") + (p.posizione < 0 ? " fuori-sequenza" : "");
-    card.append(paragrafo(`${i + 1}. ${g.n_prog ?? "rotolo mancante"}`, "titolo"));
-    card.append(paragrafo(
+    const scheda = document.createElement("div");
+    scheda.className = "riga-programma" + (lavorata ? " lavorata" : "") + (p.posizione < 0 ? " fuori-sequenza" : "");
+    // Una riga fuori sequenza non ha un posto nel programma: non le si dà un numero d'ordine.
+    const numero = p.posizione < 0 ? "—" : `${i + 1}.`;
+    scheda.append(paragrafo(`${numero} ${g.n_prog ?? "rotolo mancante"}`, "titolo"));
+    scheda.append(paragrafo(
       `${formattaNumero(g.larghezza_mm)} × ${formattaNumero(g.spessore_mm, 2)} mm · ${g.cliente ?? "cliente non indicato"}`
       + (lavorata ? " · già lavorata" : ""), "dettaglio"));
     if (p.posizione < 0) {
-      card.append(paragrafo("Questa riga è rimasta fuori sequenza: toglila e riaggiungila in fondo al programma.", "avviso-riga"));
+      scheda.append(paragrafo("Questa riga è rimasta fuori sequenza: toglila e riaggiungila in fondo al programma.", "avviso-riga"));
     }
 
     const campi = document.createElement("div");
@@ -123,10 +125,10 @@ function disegnaSequenza(righe, lavorate) {
       campoScheda(p, g, lavorata),
       campoTesto(p, "suddivisione_prevista", "Suddivisione prevista", lavorata),
       campoTesto(p, "note", "Nota", lavorata),
-      comandiRiga(p, i, righe, lavorata),
+      comandiRiga(p, i, righe, lavorata, lavorate),
     );
-    card.append(campi);
-    box.append(card);
+    scheda.append(campi);
+    contenitore.append(scheda);
   });
 }
 
@@ -180,13 +182,18 @@ function campoTesto(p, colonna, etichetta, lavorata) {
   return div;
 }
 
-function comandiRiga(p, i, righe, lavorata) {
+// Una riga si può spostare solo se non è già stata lavorata (spec: i comandi delle righe
+// lavorate sono disattivati) e se non è rimasta fuori sequenza. Uno scambio deve avere DUE righe
+// spostabili: scambiare con una riga lavorata potrebbe lasciarla in appoggio, e da lì non
+// uscirebbe più, perché Togli su una riga lavorata è vietato dalla chiave esterna.
+const spostabile = (p, lavorate) => p != null && p.posizione >= 0 && !lavorate.has(p.id);
+
+function comandiRiga(p, i, righe, lavorata, lavorate) {
   const div = document.createElement("div");
   div.className = "comandi-riga";
-  // Una riga fuori sequenza (posizione negativa) non si sposta: si toglie e si riaggiunge.
-  const bloccato = occupato || p.posizione < 0;
-  const su = tastoRiga("▲", i === 0 || bloccato || righe[i - 1]?.posizione < 0, () => scambia(p, righe[i - 1], righe));
-  const giu = tastoRiga("▼", i === righe.length - 1 || bloccato || righe[i + 1]?.posizione < 0, () => scambia(p, righe[i + 1], righe));
+  const io = !occupato && spostabile(p, lavorate);
+  const su = tastoRiga("▲", !io || !spostabile(righe[i - 1], lavorate), () => scambia(p, righe[i - 1], righe));
+  const giu = tastoRiga("▼", !io || !spostabile(righe[i + 1], lavorate), () => scambia(p, righe[i + 1], righe));
   const togli = tastoRiga("Togli", lavorata || occupato, () => rimuovi(p));
   togli.className = "secondario";
   div.append(su, giu, togli);
@@ -207,7 +214,7 @@ function tastoRiga(testo, disabilitato, azione) {
 // scriverlo prima lo cancellerebbe senza che nessuno lo legga.
 async function scrivi(id, campi, messaggi = DOPPIONE) {
   esito("Salvo…");
-  const r = await salva(() => sb.from("pianificazione").update(campi).eq("id", id), { messaggi });
+  const r = await salva(() => sb.from("pianificazione").update(campi).eq("id", id), { ...RETE, messaggi });
   if (!r.ok) { await mostra(contesto); esito(r.errore, "errore"); return false; }
   esito("Salvato.", "ok");
   return true;
@@ -219,14 +226,14 @@ async function aggiungi(grezzo) {
   if (error) return esito("Non riesco a leggere il programma.", "errore");
   const posizione = Math.max(0, ...data.map((r) => r.posizione)) + 1;
   const r = await salva(() => sb.from("pianificazione")
-    .insert({ settimana, posizione, rotolo_grezzo_id: grezzo.id }), { messaggi: DOPPIONE });
+    .insert({ settimana, posizione, rotolo_grezzo_id: grezzo.id }), { ...RETE, messaggi: DOPPIONE });
   if (!r.ok) return esito(r.errore, "errore");
   await mostra(contesto);
   esito(`${grezzo.n_prog} aggiunto al programma.`, "ok");
 }
 
 async function rimuovi(p) {
-  const r = await salva(() => sb.from("pianificazione").delete().eq("id", p.id), { messaggi: COLLEGATA });
+  const r = await salva(() => sb.from("pianificazione").delete().eq("id", p.id), { ...RETE, messaggi: COLLEGATA });
   if (!r.ok) return esito(r.errore, "errore");
   await mostra(contesto);
   esito("Riga tolta dal programma.", "ok");
@@ -257,10 +264,15 @@ async function scambia(a, b, righe) {
   ];
   let fermo = null;
   for (const [id, campi] of passi) {
-    const r = await salva(() => sb.from("pianificazione").update(campi).eq("id", id), { messaggi: DOPPIONE });
+    const r = await salva(() => sb.from("pianificazione").update(campi).eq("id", id), { ...RETE, messaggi: DOPPIONE });
     if (!r.ok) { fermo = r.errore; break; }
   }
-  if (fermo) await sb.from("pianificazione").update({ posizione: a.posizione }).eq("id", a.id);
+  if (fermo) {
+    // Rimessa a posto: riesce se il guasto è stato al secondo passo (la posizione di A è ancora
+    // libera). Se fallisce anche questa, A resta in appoggio e la sequenza lo dice con l'avviso.
+    const r = await sb.from("pianificazione").update({ posizione: a.posizione }).eq("id", a.id);
+    if (r.error) fermo += " La riga è rimasta fuori sequenza: toglila e riaggiungila.";
+  }
   occupato = false;
   await mostra(contesto);
   esito(fermo ?? "Spostato.", fermo ? "errore" : "ok");

@@ -29,6 +29,9 @@ function apriTab(tab) {
 }
 
 // Tre stati della pagina: login, ruolo sbagliato, applicazione.
+// Il tab si ridisegna solo quando lo stato cambia davvero: onAuthStateChange scatta anche al
+// rinnovo del gettone (circa ogni ora), e un ridisegno a metà digitazione perderebbe il testo.
+let statoPrecedente = null;
 async function aggiorna() {
   const { data: { session } } = await sb.auth.getSession();
   const ruolo = session ? await ruoloCorrente() : null;
@@ -36,7 +39,9 @@ async function aggiorna() {
   byId("uff-login").hidden = !!session;
   byId("uff-negato").hidden = !session || dentro;
   byId("uff-app").hidden = !dentro;
-  if (dentro) apriTab(tabAttivo);
+  const stato = `${session?.user?.id ?? "—"}/${ruolo ?? "—"}`;
+  if (dentro && stato !== statoPrecedente) apriTab(tabAttivo);
+  statoPrecedente = stato;
 }
 
 byId("uff-form-login").addEventListener("submit", async (ev) => {

@@ -5,7 +5,7 @@
 // grezzi_upd. Qui si disabilita ciò che il database rifiuterebbe, e si mostrano i suoi messaggi.
 // ============================================================
 import { byId, sb, salva } from "../db.js";
-import { prossimoNProg, valoriUsati, formattaNumero } from "../comune.js";
+import { prossimoNProg, valoriUsati, formattaNumero, dataBreveItaliana } from "../comune.js";
 
 // Colonne su cui l'ufficio ha il grant di insert (sezione e di 000_setup.sql).
 const CAMPI = {
@@ -33,6 +33,10 @@ function esito(testo, classe = "") {
   byId("mag-esito").textContent = testo;
   byId("mag-esito").className = "esito " + classe;
 }
+
+// salva() ritenta da sola quando la rete manca (spec §3.9): senza questo si vedrebbe "Salvo…"
+// all'infinito senza capire perché.
+const RETE = { onStato: (s) => { if (s === "attesa") esito("In attesa di rete… riprovo", "errore"); } };
 
 // ---------- Elenco ----------
 export async function mostra(ctx) {
@@ -103,18 +107,18 @@ function disegna(righe) {
     tr.append(cella(r.n_prog));
 
     const tdStato = document.createElement("td");
-    const pill = document.createElement("span");
-    pill.className = "stato " + r.stato;
-    pill.textContent = { grezzo: "a magazzino", in_lavorazione: "in linea", esaurito: "esaurito" }[r.stato];
-    tdStato.append(pill);
+    const etichetta = document.createElement("span");
+    etichetta.className = "stato " + r.stato;
+    etichetta.textContent = { grezzo: "a magazzino", in_lavorazione: "in linea", esaurito: "esaurito" }[r.stato];
+    tdStato.append(etichetta);
     tr.append(tdStato);
 
     tr.append(cella(r.fornitore ?? "—"), cella(r.cliente ?? "—"), cella(r.lega ?? "—"), cella(r.finitura ?? "—"),
       cella(formattaNumero(r.spessore_mm, 2), "num"), cella(formattaNumero(r.larghezza_mm), "num"),
       cella(formattaNumero(r.peso_bolla_kg), "num"), cella(formattaNumero(r.kg_residui), "num"),
       cella(formattaNumero(r.metri_stimati), "num"), cella(r.posizione ?? "—"),
-      cella(r.data_arrivo ?? "—"), cella(r.note ?? "—"),
-      cella(r.modificato_da ? `${r.modificato_da} ${(r.modificato_il ?? "").slice(0, 10)}` : "—"));
+      cella(dataBreveItaliana(r.data_arrivo)), cella(r.note ?? "—"),
+      cella(r.modificato_da ? `${r.modificato_da} ${dataBreveItaliana(r.modificato_il)}` : "—"));
 
     const tdTasti = document.createElement("td");
     const modifica = document.createElement("button");
@@ -186,8 +190,8 @@ async function invia(ev) {
 
   const esitoSalva = inModifica
     ? await salva(() => sb.from("rotoli_grezzi")
-        .update({ ...dati, kg_residui: valore("mag-kg-residui", true) }).eq("id", inModifica.id))
-    : await salva(() => sb.from("rotoli_grezzi").insert(dati));
+        .update({ ...dati, kg_residui: valore("mag-kg-residui", true) }).eq("id", inModifica.id), RETE)
+    : await salva(() => sb.from("rotoli_grezzi").insert(dati), RETE);
 
   byId("mag-salva").disabled = false;
   if (!esitoSalva.ok) return esito(esitoSalva.errore, "errore");

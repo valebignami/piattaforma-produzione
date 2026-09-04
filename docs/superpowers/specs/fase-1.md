@@ -21,9 +21,9 @@ Fase di solo front-end: lo schema della Fase 0 copre già tutto ciò che serve.
 | `stampa.html` | nuovo | pagina di stampa, in questa fase **solo** `tipo=grezzo` |
 | `css/stampa.css` | nuovo | A4, `@media print` |
 | `js/stampa.js` | nuovo | voce 3 |
-| `js/comune.js` | modificato | 5 funzioni pure nuove (§3) |
+| `js/comune.js` | modificato | 7 funzioni pure nuove (§3) |
 | `js/db.js` | modificato | `salva()` accetta messaggi d'errore per codice (§2 voce 6) |
-| `tests/test-comune.mjs` | modificato | test delle 5 funzioni nuove |
+| `tests/test-comune.mjs` | modificato | test delle 7 funzioni nuove |
 | `tests/test-dom-ids.mjs` | modificato | 5 coppie js↔html nuove |
 
 `index.html`, `js/index.js`, `css/base.css`, `sql/` **non si toccano**.
@@ -92,7 +92,8 @@ messaggio generico). Per `kg_residui` la distinzione conta ed è voluta: **vuoto
 **Stampa scheda grezzo**: tasto sulla riga → apre `stampa.html?tipo=grezzo&n_prog=<n_prog>` in
 una scheda nuova.
 
-Tutte le scritture passano da `salva()` di `js/db.js` (indicatore `#mag-stato-salva`); i messaggi
+Tutte le scritture passano da `salva()` di `js/db.js`, con `onStato` collegato a `#mag-esito`
+perché il ritentativo di rete si veda ("In attesa di rete… riprovo", spec §3.9); i messaggi
 d'errore sono quelli che `db.js` già traduce in italiano.
 
 ### Voce 3 — `stampa.html?tipo=grezzo&n_prog=`
@@ -216,6 +217,8 @@ frase mostrata.
 
 | Funzione | Regola | Test |
 |---|---|---|
+| `dataBreveItaliana(valore)` | `GG/MM/AAAA`; una colonna `date` (`AAAA-MM-GG`) si legge com'è, un `timestamptz` si converte al fuso locale — tagliarne i primi dieci caratteri darebbe la data UTC, cioè il giorno prima per tutto ciò che accade dopo le 22 | una data, un timestamp, nullo, vuoto, testo non valido |
+| `dataLungaItaliana(valore)` | `7 settembre 2026`, stesse regole | una data, un mese diverso, nullo |
 | `lunediDellaSettimana(data)` | **stringa `AAAA-MM-GG`** del lunedì della settimana della data, costruita dai componenti **locali**; la domenica appartiene alla settimana che inizia il lunedì precedente | un lunedì resta se stesso; un mercoledì; una domenica; un cambio di mese; un cambio d'anno |
 | `settimanaSpostata(isoLunedi, settimane)` | sposta una stringa `AAAA-MM-GG` di ±n settimane, restituendo una stringa | avanti, indietro, oltre il cambio di mese e di anno, attraverso il cambio d'ora legale |
 | `schedeCompatibili(schede, spessoreMm, larghezzaMm)` | `spessore_min ≤ sp ≤ spessore_max` **e** `larghezza_min ≤ larg ≤ larghezza_max`; ordinate per `micron` crescente | dentro, ai bordi (min e max compresi), fuori per spessore, fuori per larghezza, ordinamento, elenco vuoto |

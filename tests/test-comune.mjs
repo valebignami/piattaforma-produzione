@@ -191,3 +191,18 @@ test("valoriUsati: distinti, senza vuoti, in ordine italiano", () => {
   assert.deepEqual(c.valoriUsati([], "cliente"), []);
   assert.deepEqual(c.valoriUsati([{ altro: "x" }], "cliente"), []);
 });
+
+test("dataBreveItaliana: una data resta il suo giorno, un timestamp passa al fuso locale", () => {
+  assert.equal(c.dataBreveItaliana("2026-09-07"), "07/09/2026");
+  assert.equal(c.dataBreveItaliana(null), "—");
+  assert.equal(c.dataBreveItaliana(""), "—");
+  assert.equal(c.dataBreveItaliana("non una data"), "—");
+  // Mezzogiorno UTC è lo stesso giorno in ogni fuso ragionevole: il test non dipende dalla macchina.
+  assert.equal(c.dataBreveItaliana("2026-09-07T12:00:00+00:00"), "07/09/2026");
+});
+
+test("dataLungaItaliana: mese per esteso", () => {
+  assert.equal(c.dataLungaItaliana("2026-09-07"), "7 settembre 2026");
+  assert.equal(c.dataLungaItaliana("2026-12-28"), "28 dicembre 2026");
+  assert.equal(c.dataLungaItaliana(null), "—");
+});
