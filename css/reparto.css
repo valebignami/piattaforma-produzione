@@ -95,3 +95,7 @@ button.fermo { background: var(--rosso); }
 .banner.fermo { border-color: var(--rosso); background: #fee2e2; }
 .banner.fermo .banner-titolo { color: var(--rosso); }
 .banner.fermo .banner-dettaglio { color: var(--testo); }
+
+/* ---------- Ultimi controlli (Fase 3) ---------- */
+.elenco-righe button.fuori { border-color: var(--rosso); }
+.elenco-righe button.fuori .dettaglio { color: var(--rosso); }

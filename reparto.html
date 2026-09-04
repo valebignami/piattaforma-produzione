@@ -78,6 +78,8 @@
           <button id="rep-evento" type="button">Evento</button>
           <button id="rep-chiudi" type="button" disabled>Chiudi rotolo<span class="prossima">dalla prossima fase</span></button>
           <button id="rep-fermo" class="fermo" type="button">Fermo</button>
+          <!-- solo per il capoturno: lo accende hub.js guardando il ruolo dell'operatore -->
+          <button id="rep-ultimi-controlli" class="secondario" type="button" hidden>Ultimi controlli</button>
         </div>
         <p><button id="rep-altro" class="secondario" type="button">Altro…</button></p>
         <div id="rep-altro-voci" hidden>
@@ -177,6 +179,14 @@
       <input id="rep-rip-metri" type="number" inputmode="decimal" step="any" min="0">
       <p><button id="rep-rip-salva" class="principale" type="button">Registra la ripartenza</button></p>
       <p id="rep-rip-esito" class="esito"></p>
+    </section>
+
+    <!-- ---------- Ultimi controlli (capoturno) ---------- -->
+    <section id="rep-sch-ultimi" class="schermata" hidden>
+      <h2>Ultimi controlli</h2>
+      <p id="rep-ultimi-vuoto" class="vuoto" hidden>Su questo rotolo non c'è ancora nessun controllo.</p>
+      <div id="rep-ultimi-elenco" class="elenco-righe"></div>
+      <p id="rep-ultimi-esito" class="esito"></p>
     </section>
 
     <!-- ---------- Annulla avvio ---------- -->

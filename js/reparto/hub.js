@@ -146,6 +146,9 @@ async function disegnaInCorso(lav) {
     + (fermo ? " fermo" : (minuti != null && minuti > SOGLIA_CONTROLLO_MIN ? " scaduto" : ""));
 
   byId("rep-fermo").textContent = fermo ? "Ripartenza" : "Fermo";
+  // "Ultimi controlli" è del capoturno e basta (spec §3.8): distinzione del solo front-end,
+  // il database lascia correggere a tutto il reparto finché la lavorazione è aperta.
+  byId("rep-ultimi-controlli").hidden = contesto.operatore?.ruolo !== "capoturno";
   esito("");
 }
 
@@ -203,6 +206,7 @@ function collega() {
   byId("rep-altro").addEventListener("click", () => {
     byId("rep-altro-voci").hidden = !byId("rep-altro-voci").hidden;
   });
+  byId("rep-ultimi-controlli").addEventListener("click", () => contesto.vaiA("ultimi", "hub"));
   byId("rep-annulla-avvio").addEventListener("click", apriAnnullo);
   byId("rep-annullo-motivo").addEventListener("input", (ev) => {
     byId("rep-annullo-conferma").disabled = ev.target.value.trim() === "";
