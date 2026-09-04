@@ -206,3 +206,41 @@ test("dataLungaItaliana: mese per esteso", () => {
   assert.equal(c.dataLungaItaliana("2026-12-28"), "28 dicembre 2026");
   assert.equal(c.dataLungaItaliana(null), "—");
 });
+
+// ---------- Fase 2 ----------
+
+test("minutiDa: minuti interi, null quando non si sa", () => {
+  const adesso = new Date(2026, 8, 4, 10, 0, 0);
+  assert.equal(c.minutiDa(new Date(2026, 8, 4, 10, 0, 0), adesso), 0);
+  assert.equal(c.minutiDa(new Date(2026, 8, 4, 9, 15, 0), adesso), 45);
+  assert.equal(c.minutiDa(new Date(2026, 8, 4, 9, 40, 0), adesso), 20);   // soglia: "più di" lo decide chi chiama
+  assert.equal(c.minutiDa(new Date(2026, 8, 4, 9, 39, 30), adesso), 20);  // 20,5 min → 20
+  assert.equal(c.minutiDa(null, adesso), null);
+  assert.equal(c.minutiDa("", adesso), null);
+  assert.equal(c.minutiDa("non una data", adesso), null);
+  assert.equal(c.minutiDa("2026-09-04T08:00:00+00:00", "non una data"), null);
+});
+
+test("oraItaliana: ora locale, non UTC", () => {
+  assert.equal(c.oraItaliana(new Date(2026, 8, 4, 8, 12, 0)), "08:12");
+  assert.equal(c.oraItaliana(new Date(2026, 8, 3, 23, 30, 0)), "23:30");   // non diventa il giorno dopo
+  assert.equal(c.oraItaliana(null), "—");
+  assert.equal(c.oraItaliana(""), "—");
+  assert.equal(c.oraItaliana("non una data"), "—");
+});
+
+test("etichettaScheda: nome, micron e misure per distinguere le omonime", () => {
+  assert.equal(
+    c.etichettaScheda({ lavorazione: "OX Naturale 3 micron", micron: 3, spessore_min: 0.3, spessore_max: 0.3, larghezza_min: 850, larghezza_max: 850 }),
+    "OX Naturale 3 micron · 3 my · 0,3 mm · 850 mm");
+  assert.equal(
+    c.etichettaScheda({ lavorazione: "OX Satinato Nat 3 micron", micron: 3, spessore_min: 0.5, spessore_max: 2, larghezza_min: 1460, larghezza_max: 1500 }),
+    "OX Satinato Nat 3 micron · 3 my · da 0,5 a 2 mm · da 1.460 a 1.500 mm");
+  assert.equal(
+    c.etichettaScheda({ lavorazione: "OX Satinato Nat 8-10 micron", micron: 9 }),
+    "OX Satinato Nat 8-10 micron · 9 my");
+  assert.equal(
+    c.etichettaScheda({ lavorazione: "prova", micron: 9.5 }), "prova · 9,5 my");
+  assert.equal(c.etichettaScheda(null), "—");
+  assert.equal(c.etichettaScheda({ micron: 3 }), "scheda senza nome · 3 my");
+});

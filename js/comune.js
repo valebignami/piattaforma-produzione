@@ -201,3 +201,54 @@ export function dataLungaItaliana(valore) {
   return Number.isNaN(d.getTime()) ? "—"
     : d.toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" });
 }
+
+// ============================================================
+// Fase 2 — avvio da tablet
+// ============================================================
+
+// Minuti interi trascorsi da un istante. Serve al banner del tablet ("ultimo controllo 45 min
+// fa") e al confronto con SOGLIA_CONTROLLO_MIN. `adesso` è un parametro perché la funzione
+// resti pura e verificabile. Un istante mancante o non valido dà null, non 0: "non lo so" e
+// "adesso" sono cose diverse.
+export function minutiDa(quando, adesso = new Date()) {
+  if (quando == null || quando === "") return null;
+  const d = quando instanceof Date ? quando : new Date(String(quando));
+  if (Number.isNaN(d.getTime())) return null;
+  const ora = adesso instanceof Date ? adesso : new Date(String(adesso));
+  if (Number.isNaN(ora.getTime())) return null;
+  return Math.floor((ora.getTime() - d.getTime()) / 60000);
+}
+
+// L'ora di un timestamptz nel fuso LOCALE ("08:12"). Come dataBreveItaliana: tagliare i
+// caratteri della stringa darebbe l'ora UTC, cioè due ore prima in estate.
+export function oraItaliana(valore) {
+  if (valore == null || valore === "") return "—";
+  const d = valore instanceof Date ? valore : new Date(String(valore));
+  return Number.isNaN(d.getTime()) ? "—"
+    : d.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+}
+
+// Una misura si scrive con i decimali che ha e non uno di più: 0,3 resta "0,3" e 850 resta
+// "850". formattaNumero non serve qui, perché fissa il numero di decimali.
+const misuraNumero = (n) =>
+  new Intl.NumberFormat("it-IT", { maximumFractionDigits: 2, useGrouping: "always" }).format(Number(n));
+
+// "da 0,5 a 2 mm" quando il minimo e il massimo sono diversi, "0,5 mm" quando coincidono.
+function misura(min, max, unita) {
+  if (min == null && max == null) return null;
+  if (min == null || max == null || Number(min) === Number(max)) return `${misuraNumero(min ?? max)} ${unita}`;
+  return `da ${misuraNumero(min)} a ${misuraNumero(max)} ${unita}`;
+}
+
+// Etichetta di una scheda di lavorazione. Serve perché dodici schede si chiamano tutte allo
+// stesso modo e si distinguono solo per le misure a cui si applicano (spec §2.1, §3.4).
+export function etichettaScheda(scheda) {
+  if (!scheda) return "—";
+  const pezzi = [scheda.lavorazione ?? "scheda senza nome"];
+  if (scheda.micron != null) pezzi.push(`${misuraNumero(scheda.micron)} my`);
+  const sp = misura(scheda.spessore_min, scheda.spessore_max, "mm");
+  const la = misura(scheda.larghezza_min, scheda.larghezza_max, "mm");
+  if (sp) pezzi.push(sp);
+  if (la) pezzi.push(la);
+  return pezzi.join(" · ");
+}
