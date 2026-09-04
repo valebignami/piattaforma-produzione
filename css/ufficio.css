@@ -88,3 +88,15 @@ td .stato.esaurito { background: #e2e8f0; color: #334155; }
 table.dati-linea { width: 100%; border-collapse: collapse; }
 table.dati-linea th, table.dati-linea td { padding: 5px 0; text-align: left; vertical-align: top; }
 table.dati-linea th { color: var(--grigio); font-weight: 500; width: 42%; }
+
+/* ---------- Live (Fase 3): fermo, scostamenti, nastro della giornata ---------- */
+.banner-fermo {
+  background: #fee2e2; border: 2px solid var(--rosso); border-radius: 10px;
+  color: var(--rosso); font-weight: 600; padding: 10px 16px; max-width: 560px; margin-bottom: 12px;
+}
+table.dati-linea td.fuori { color: var(--rosso); font-weight: 600; }
+.nastro { max-width: 760px; }
+.voce-nastro { margin: 0; padding: 5px 0; border-bottom: 1px solid #e2e8f0; }
+.voce-nastro strong { color: var(--grigio); font-variant-numeric: tabular-nums; }
+.voce-nastro.fuori { color: var(--rosso); }
+.voce-nastro.fuori strong { color: var(--rosso); }

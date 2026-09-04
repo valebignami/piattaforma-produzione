@@ -9,9 +9,12 @@ insert into utenti_app (uid, ruolo) values
   ('00000000-0000-0000-0000-00000000aaaa', 'ufficio'),
   ('00000000-0000-0000-0000-00000000bbbb', 'reparto');
 insert into operatori (nome, ruolo) values ('Test Operatore', 'operatore'), ('Test Capoturno', 'capoturno');
+-- Numeri INVENTATI (come in tests/test-comune.mjs): il repo è pubblico e i parametri di
+-- processo veri stanno solo nel Word delle schede e in sql/seed_schede.sql, gitignorato.
+-- Qui contano le REGOLE (dentro/fuori, ±10 %, soglie del gloss), non i valori.
 insert into schede_lavorazione (lavorazione, tipo, micron, spessore_min, spessore_max, larghezza_min, larghezza_max,
                                 velocita_m_min, ossido_ampere, ossido_temp, ossido_temp_min, ossido_temp_max)
-  values ('TEST OX Satinato 5 micron', 'satinato', 5, 1, 3, 1000, 1500, 2.3, 8400, 37, 33, 39);
+  values ('TEST OX Satinato 5 micron', 'satinato', 5, 1, 3, 1000, 1500, 10, 1000, 65, 60, 70);
 insert into rotoli_grezzi (n_prog, fornitore, spessore_mm, larghezza_mm, peso_bolla_kg) values ('T5000', 'Forn. Test', 2, 1500, 6500);
 insert into rotoli_grezzi (n_prog, fornitore, spessore_mm, larghezza_mm, peso_bolla_kg) values ('T5001', 'Forn. Test', 2, 1500, 6500);
 insert into rotoli_grezzi (n_prog, fornitore, spessore_mm, larghezza_mm, peso_bolla_kg) values ('T5004', 'Forn. Test', 2, 1500, 6500);
@@ -57,6 +60,7 @@ begin
   -- controllo e fermo/ripartenza
   insert into controlli (lavorazione_id, operatore_id, momento, contametri, temp_ossido, micron, gloss_perpendicolare)
     values (lav, op, 'inizio', 100, 40, 4.4, 40);
+  -- ossido 40 sotto il minimo 60, micron 4,4 a −12 % dai 5 previsti, gloss ⊥ 40 alla soglia
   assert (select n_fuori from controlli_scostamenti where lavorazione_id = lav) = 3, 'scostamenti: attesi 3 (ossido, micron, gloss ⊥)';
   insert into eventi (lavorazione_id, tipo, causa_fermo, avvenuto_il) values (lav, 'fermo', 'guasto', now() - interval '12 minutes') returning id into f;
   begin  -- chiusura con fermo aperto
@@ -202,7 +206,7 @@ begin
   -- registrazione a posteriori MENTRE la linea è occupata: deve riuscire (riga già chiusa, niente indice)
   insert into rotoli_grezzi (n_prog, spessore_mm, larghezza_mm, peso_bolla_kg) values ('T5003', 2, 1500, 6500) returning id into gz;
   r := registra_lavorazione_completa(gz, sch, op, now() - interval '3 hours', 6500, 0, 0,
-        '[{"momento":"inizio","temp_ossido":37}]'::jsonb,
+        '[{"momento":"inizio","temp_ossido":65}]'::jsonb,
         '[{"tipo":"nota","descrizione":"da carta"},{"tipo":"fermo","causa_fermo":"guasto"}]'::jsonb,
         op, now() - interval '1 hour', 60, 800, '[{"peso_lordo_kg":6300,"peso_tubolare_kg":40}]'::jsonb, 0, 'ricopiata');
   assert r->'codici' = '["T5003"]'::jsonb, 'codice a posteriori: ' || r::text;

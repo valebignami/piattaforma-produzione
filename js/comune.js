@@ -3,8 +3,9 @@
 // Costanti e FUNZIONI PURE. Nessun import, nessun DOM, nessuna rete:
 // questo file gira identico nel browser e nei test Node.
 // Le tre regole duplicate col DB (fuoriRange, codiciFigli, bilancioChiusura)
-// sono dichiarate nello spec §2.6/§3.7; il test di coerenza JS↔DB arriva con la
-// Fase 3, fino ad allora test-comune.mjs e test_regole.sql usano gli stessi numeri.
+// sono dichiarate nello spec §2.6/§3.7 e dalla Fase 3 sono coperte dal test di
+// coerenza: sql/test_coerenza.sql e tests/test-coerenza.mjs leggono gli stessi
+// numeri dallo stesso file, così i due lati non possono divergere in silenzio.
 // ============================================================
 
 export const SOGLIA_CONTROLLO_MIN = 20;   // minuti senza controllo → banner colorato (manuale: ogni 20')
@@ -219,6 +220,14 @@ export function minutiDa(quando, adesso = new Date()) {
   return Math.floor((ora.getTime() - d.getTime()) / 60000);
 }
 
+// Minuti "fa", mai negativi. L'ora la scrive il DATABASE (default now()) e il conto lo fa il
+// TABLET: sono due orologi diversi, e un controllo appena salvato può risultare mezzo secondo
+// nel futuro. Senza questo, subito dopo il salvataggio il banner scriveva "-1 min fa".
+export function minutiFa(quando, adesso = new Date()) {
+  const m = minutiDa(quando, adesso);
+  return m == null ? null : Math.max(0, m);
+}
+
 // L'ora di un timestamptz nel fuso LOCALE ("08:12"). Come dataBreveItaliana: tagliare i
 // caratteri della stringa darebbe l'ora UTC, cioè due ore prima in estate.
 export function oraItaliana(valore) {
@@ -251,4 +260,137 @@ export function etichettaScheda(scheda) {
   if (sp) pezzi.push(sp);
   if (la) pezzi.push(la);
   return pezzi.join(" · ");
+}
+
+// ============================================================
+// Fase 3 — controlli ed eventi
+// ============================================================
+
+// Metri di nastro da scartare dopo un fermo (spec §2.5): 100 è la lunghezza dell'intera linea
+// secondo il manuale, quindi un valore PRUDENZIALE. Da tarare dopo il pilota.
+export const METRI_SCARTO_RIPARTENZA = 100;
+
+// Codice → etichetta italiana. Le chiavi sono quelle dei check del database: il test di coerenza
+// (tests/test-coerenza.mjs) verifica che siano esattamente quelle, né una in più né una in meno.
+export const MOMENTI = {
+  inizio: "Inizio", meta: "Metà", fine: "Fine", periodico: "Periodico",
+};
+export const CAUSE_FERMO = {
+  guasto: "Guasto", bagno: "Bagno", cambio_rotolo: "Cambio rotolo", esterno: "Esterno", altro: "Altro",
+};
+export const TIPI_EVENTO = {
+  difetto: "Difetto", fermo: "Fermo", ripartenza: "Ripartenza", aggiunta: "Aggiunta",
+  giunta_film: "Giunta film", taglio_film: "Taglio film",
+  primi_metri_non_ossidati: "Primi metri non ossidati", nota: "Nota",
+};
+// I tre prodotti dello spec §3.6. Non sono i prodotti delle vasche: quelli stanno solo nel
+// database e nel Word delle schede.
+export const PRODOTTI_AGGIUNTA = ["satina", "ammoniaca", "altro"];
+
+// I campi di un controllo, in ordine e per zona (spec §3.5). Una fonte sola per il tablet
+// (schermata del controllo, correzione del capoturno) e per Live (ultimo controllo, nastro):
+// `fuori` è il nome della colonna booleana corrispondente nella vista controlli_scostamenti e
+// nel risultato di fuoriRange. I campi senza `fuori` non hanno riferimento (spec §2.6).
+export const CAMPI_CONTROLLO = [
+  { campo: "contametri",           etichetta: "Contametri",  unita: "m",     zona: "Linea" },
+  { campo: "velocita_m_min",       etichetta: "Velocità",    unita: "m/min", zona: "Linea",   fuori: "velocita_m_min_fuori" },
+  { campo: "corrente_a",           etichetta: "Corrente",    unita: "A",     zona: "Linea",   fuori: "corrente_a_fuori" },
+  { campo: "tensione_v",           etichetta: "Tensione",    unita: "V",     zona: "Linea" },
+  { campo: "temp_sgrassatura",     etichetta: "Sgrassatura", unita: "°C",    zona: "Vasche",  fuori: "temp_sgrassatura_fuori" },
+  { campo: "temp_satina",          etichetta: "Satinatura",  unita: "°C",    zona: "Vasche",  fuori: "temp_satina_fuori" },
+  { campo: "temp_ossido",          etichetta: "Ossido",      unita: "°C",    zona: "Vasche",  fuori: "temp_ossido_fuori" },
+  { campo: "temp_fissaggio",       etichetta: "Fissaggio",   unita: "°C",    zona: "Vasche",  fuori: "temp_fissaggio_fuori" },
+  { campo: "micron",               etichetta: "Micron",      unita: "my",    zona: "Qualità", fuori: "micron_fuori" },
+  { campo: "gloss_perpendicolare", etichetta: "Gloss ⊥",     unita: "",      zona: "Qualità", fuori: "gloss_perpendicolare_fuori" },
+  { campo: "gloss_parallelo",      etichetta: "Gloss ∥",     unita: "",      zona: "Qualità", fuori: "gloss_parallelo_fuori" },
+];
+
+// Momento proposto per il prossimo controllo (spec §3.5): il primo è l'inizio, gli altri sono
+// periodici. "Metà" e "fine" restano a un tocco, ma non si propongono: le sa solo l'operatore.
+export function momentoProposto(nControlli) {
+  return nControlli > 0 ? "periodico" : "inizio";
+}
+
+// Fermo aperto = evento `fermo` che nessuna `ripartenza` punta (spec §2.5, unica definizione).
+// È una LETTURA, non una regola: il giudice resta il database, che respinge la chiusura e
+// l'annullo con "C'è un fermo aperto". Se per un errore ce ne fosse più d'uno, vince il più
+// recente: è quello che l'operatore ha davanti.
+export function fermoAperto(eventi) {
+  const chiusi = new Set(eventi.filter((e) => e.tipo === "ripartenza" && e.fermo_id).map((e) => e.fermo_id));
+  const aperti = eventi.filter((e) => e.tipo === "fermo" && !chiusi.has(e.id));
+  if (aperti.length === 0) return null;
+  return aperti.reduce((a, b) => (new Date(b.avvenuto_il) > new Date(a.avvenuto_il) ? b : a));
+}
+
+// Una riga in italiano per il nastro cronologico di Live e per il banner del tablet.
+export function descrizioneEvento(ev) {
+  const a = ev.contametri != null ? ` a ${formattaNumero(ev.contametri)} m` : "";
+  const coda = ev.descrizione ? ` — ${ev.descrizione}` : "";
+  switch (ev.tipo) {
+    case "difetto":
+      return `Difetto: ${ev.tipo_difetto_nome ?? "non indicato"}${a}${coda}`;
+    case "fermo":
+      return `Fermo · ${CAUSE_FERMO[ev.causa_fermo] ?? "causa non indicata"} · `
+        + (ev.durata_min != null ? `${formattaNumero(ev.durata_min)} min` : "ancora aperto");
+    case "ripartenza":
+      return `Ripartenza${ev.metri_scarto != null ? ` · ${formattaNumero(ev.metri_scarto)} m di scarto` : ""}`;
+    case "aggiunta":
+      return `Aggiunta: ${ev.prodotto ?? "prodotto non indicato"}`
+        + (ev.litri != null ? ` · ${formattaNumero(ev.litri, 1)} l` : "");
+    case "nota":
+      return `Nota${coda || ": —"}`;
+    default:
+      return `${TIPI_EVENTO[ev.tipo] ?? "Evento"}${a}${coda}`;
+  }
+}
+
+// Le etichette dei campi che una riga di controlli_scostamenti (o un risultato di fuoriRange)
+// segna fuori riferimento. Il giudizio è della vista: qui si traduce soltanto.
+export function elencoFuori(riga) {
+  if (!riga) return [];
+  return CAMPI_CONTROLLO.filter((c) => c.fuori && riga[c.fuori]).map((c) => c.etichetta);
+}
+
+// La ragione, in parole, per cui un campo di un controllo è fuori riferimento. NON decide
+// niente: il fatto lo stabilisce fuoriRange (e prima ancora la vista); qui si sceglie soltanto
+// come dirlo all'operatore. `campo` è una voce di CAMPI_CONTROLLO.
+export function ragioneFuori(campo, valore, rif) {
+  if (campo.campo.startsWith("temp_")) {
+    const vasca = campo.campo.replace(/^temp_/, "");
+    const min = rif[`${vasca}_temp_min`];
+    const max = rif[`${vasca}_temp_max`];
+    if (min != null && valore < min) return `sotto il minimo (${formattaNumero(min, 1)})`;
+    if (max != null && valore > max) return `sopra il massimo (${formattaNumero(max, 1)})`;
+    return "";
+  }
+  if (campo.campo === "gloss_perpendicolare") return `pari o oltre ${GLOSS_PERP_MAX}`;
+  if (campo.campo === "gloss_parallelo") return `pari o oltre ${GLOSS_PAR_MAX}`;
+  const previsto = {
+    velocita_m_min: rif.velocita_prevista,
+    corrente_a: rif.ampere_previsti,
+    micron: rif.micron_previsti,
+  }[campo.campo];
+  if (previsto == null) return "";
+  return `oltre il ±${TOLLERANZA_PCT} % del previsto (${formattaNumero(previsto, 1)})`;
+}
+
+// La mezzanotte LOCALE di un giorno, per filtrare "quello che è successo oggi". Un confine
+// costruito con toISOString() o con slice(0,10) sarebbe la mezzanotte UTC, cioè le 2 del mattino
+// in estate: le prime ore del turno finirebbero nel giorno prima.
+export function inizioGiornata(data = new Date()) {
+  const d = data instanceof Date ? data : new Date(String(data));
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+// Un'ora scritta a mano ("23:50") diventa un istante, costruito sui componenti LOCALI. Se cade
+// nel futuro si intende quella di ieri: il fermo delle 23:50 registrato alle 00:05 è di ieri, e
+// un fermo nel futuro farebbe poi respingere la ripartenza dal trigger.
+export function istanteDaOra(hhmm, adesso = new Date()) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm ?? "").trim());
+  if (!m) return null;
+  const ore = Number(m[1]), minuti = Number(m[2]);
+  if (ore > 23 || minuti > 59) return null;
+  const d = new Date(adesso.getFullYear(), adesso.getMonth(), adesso.getDate(), ore, minuti, 0, 0);
+  if (d.getTime() > adesso.getTime()) d.setDate(d.getDate() - 1);
+  return d;
 }

@@ -74,9 +74,12 @@
           <p id="rep-banner-dettaglio" class="banner-dettaglio"></p>
         </div>
         <div class="azioni">
-          <button id="rep-controllo" type="button" disabled>Controllo<span class="prossima">dalla prossima fase</span></button>
-          <button id="rep-evento" type="button" disabled>Evento<span class="prossima">dalla prossima fase</span></button>
+          <button id="rep-controllo" type="button">Controllo</button>
+          <button id="rep-evento" type="button">Evento</button>
           <button id="rep-chiudi" type="button" disabled>Chiudi rotolo<span class="prossima">dalla prossima fase</span></button>
+          <button id="rep-fermo" class="fermo" type="button">Fermo</button>
+          <!-- solo per il capoturno: lo accende hub.js guardando il ruolo dell'operatore -->
+          <button id="rep-ultimi-controlli" class="secondario" type="button" hidden>Ultimi controlli</button>
         </div>
         <p><button id="rep-altro" class="secondario" type="button">Altro…</button></p>
         <div id="rep-altro-voci" hidden>
@@ -128,6 +131,62 @@
         <input id="rep-avvio-contametri" type="number" inputmode="decimal" step="any" min="0" value="0">
         <p><button id="rep-avvio-conferma" class="principale" type="button">Avvia</button></p>
       </div>
+    </section>
+
+    <!-- ---------- Controllo ---------- -->
+    <section id="rep-sch-controllo" class="schermata" hidden>
+      <p id="rep-ctl-riepilogo" class="riepilogo"></p>
+      <h2>Momento</h2>
+      <div id="rep-ctl-momenti" class="griglia-bottoni"></div>
+      <!-- i campi li disegna controllo.js da CAMPI_CONTROLLO: una fonte sola per tablet e Live -->
+      <div id="rep-ctl-campi"></div>
+      <label for="rep-ctl-note">Note</label>
+      <input id="rep-ctl-note" type="text">
+      <p><button id="rep-ctl-salva" class="principale" type="button">Salva il controllo</button></p>
+      <p id="rep-ctl-esito" class="esito"></p>
+    </section>
+
+    <!-- ---------- Evento ---------- -->
+    <section id="rep-sch-evento" class="schermata" hidden>
+      <p id="rep-ev-esito" class="esito"></p>
+
+      <!-- 1. quale evento -->
+      <div id="rep-ev-1" hidden>
+        <h2>Che cosa è successo</h2>
+        <div id="rep-ev-tipi" class="griglia-bottoni"></div>
+      </div>
+
+      <!-- 2. il dettaglio -->
+      <div id="rep-ev-2" hidden>
+        <h2 id="rep-ev-titolo"></h2>
+        <div id="rep-ev-scelte" class="elenco-righe"></div>
+        <!-- causa e azione arrivano dal catalogo dei difetti: si leggono, non si salvano -->
+        <div id="rep-ev-difetto-info" class="riquadro-aiuto" hidden>
+          <p id="rep-ev-difetto-causa"></p>
+          <p id="rep-ev-difetto-azione"></p>
+        </div>
+        <div id="rep-ev-campi"></div>
+        <p><button id="rep-ev-salva" class="principale" type="button">Salva</button></p>
+      </div>
+    </section>
+
+    <!-- ---------- Ripartenza ---------- -->
+    <section id="rep-sch-ripartenza" class="schermata" hidden>
+      <h2>Ripartenza</h2>
+      <p id="rep-rip-fermo" class="riepilogo"></p>
+      <p id="rep-rip-avviso" class="riquadro-aiuto"></p>
+      <label for="rep-rip-metri">Metri di nastro da scartare</label>
+      <input id="rep-rip-metri" type="number" inputmode="decimal" step="any" min="0">
+      <p><button id="rep-rip-salva" class="principale" type="button">Registra la ripartenza</button></p>
+      <p id="rep-rip-esito" class="esito"></p>
+    </section>
+
+    <!-- ---------- Ultimi controlli (capoturno) ---------- -->
+    <section id="rep-sch-ultimi" class="schermata" hidden>
+      <h2>Ultimi controlli</h2>
+      <p id="rep-ultimi-vuoto" class="vuoto" hidden>Su questo rotolo non c'è ancora nessun controllo.</p>
+      <div id="rep-ultimi-elenco" class="elenco-righe"></div>
+      <p id="rep-ultimi-esito" class="esito"></p>
     </section>
 
     <!-- ---------- Annulla avvio ---------- -->

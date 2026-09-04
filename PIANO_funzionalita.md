@@ -47,6 +47,7 @@
 | **Lega nelle schede di lavorazione** (2026-09-04) | **casella vuota.** Il Word non riporta la lega; il vecchio Excel sì, su tutte e 51 le righe. Il committente ha scelto di non attingere a due fonti: vale "il Word è l'unica fonte". Per riaverla basta rimetterla nel Word e rifare il caricamento |
 | **Operatori del pilota** (2026-09-04) | **Marco** e **Davide** (spec §7). Vanno inseriti in Impostazioni con nome e cognome completi prima del pilota |
 | **Data di stop carta** (2026-09-04) | **non deciso.** Il committente la fisserà dopo la Fase 4 e dopo la mezza giornata di addestramento. Il pilota non parte finché non c'è |
+| **Capoturno** (2026-09-04) | **Marco.** Davide resta operatore. Il capoturno è l'unico che vede "Ultimi controlli" sul tablet e può correggere un controllo già salvato (spec §3.8) |
 | **App `schede-1500` esistente** (2026-09-04) | resta com'è: è un visualizzatore con i dati cifrati in pagina (blocco AES di 43.000 caratteri, nessun testo in chiaro), quindi non è interrogabile da un programma e non può sostituire le schede in tabella. La sua sostituzione è il sotto-progetto 3, non questa fetta |
 
 ## §3 Le fasi

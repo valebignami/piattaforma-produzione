@@ -55,7 +55,9 @@ button.principale { min-height: 72px; font-size: 22px; padding: 0 32px; width: 1
 .banner-dettaglio { font-size: 18px; color: var(--grigio); margin: 6px 0 0; }
 .banner.scaduto .banner-dettaglio { color: var(--rosso); }
 
-.azioni { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+/* I tasti dell'hub sono quattro (cinque per il capoturno): si dispongono da soli,
+   restando sopra i 56 px anche a 1024 px di larghezza. */
+.azioni { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 20px; }
 .azioni button { min-height: 88px; font-size: 20px; display: flex; flex-direction: column; gap: 4px; align-items: center; justify-content: center; }
 .prossima { font-size: 18px; font-weight: 400; opacity: .9; }   /* spec §3.1: mai sotto i 18 px */
 
@@ -70,3 +72,34 @@ button.principale { min-height: 72px; font-size: 22px; padding: 0 32px; width: 1
 table.parametri { width: 100%; max-width: 620px; border-collapse: collapse; background: #fff; font-size: 18px; margin-bottom: 16px; }
 table.parametri th, table.parametri td { padding: 8px 12px; border-bottom: 1px solid #e2e8f0; text-align: left; }
 table.parametri th { color: var(--grigio); font-weight: 500; width: 45%; }
+
+/* ---------- Controllo (Fase 3) ---------- */
+/* Il momento scelto si vede a colpo d'occhio: è l'unico bottone pieno della griglia. */
+.griglia-bottoni button.scelto { background: var(--blu); color: #fff; }
+#rep-ctl-campi input.fuori { border: 3px solid var(--rosso); background: #fef2f2; }
+/* La ragione del rosso, in parole. Mai sotto i 18 px (spec §3.1). */
+.ragione { color: var(--rosso); font-size: 18px; margin: 4px 0 0; max-width: 520px; }
+
+/* ---------- Evento (Fase 3) ---------- */
+.elenco-righe button.scelto { border-color: var(--blu); border-width: 3px; background: #eff6ff; }
+/* Causa probabile e azione del catalogo: si leggono, non si salvano. */
+.riquadro-aiuto {
+  background: #fff; border: 2px solid #cbd5e1; border-left: 8px solid var(--blu);
+  border-radius: 12px; padding: 12px 18px; margin: 16px 0; max-width: 760px;
+}
+.riquadro-aiuto p { font-size: 18px; margin: 6px 0; }
+.riquadro-aiuto p:empty { display: none; }
+
+/* ---------- Fermo e ripartenza (Fase 3) ---------- */
+button.fermo { background: var(--rosso); }
+.banner.fermo { border-color: var(--rosso); background: #fee2e2; }
+.banner.fermo .banner-titolo { color: var(--rosso); }
+.banner.fermo .banner-dettaglio { color: var(--testo); }
+
+/* ---------- Ultimi controlli (Fase 3) ---------- */
+.elenco-righe button.fuori { border-color: var(--rosso); }
+.elenco-righe button.fuori .dettaglio { color: var(--rosso); }
+
+/* Un bottone di griglia può portare sotto il nome la ragione per cui è spento (spec §3.1: la
+   ragione si legge sul tablet, un title del mouse non si vede). */
+.griglia-bottoni button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
