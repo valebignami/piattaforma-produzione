@@ -9,6 +9,7 @@ const COPPIE = [
   ["js/ufficio/magazzino.js", "ufficio.html"],
   ["js/ufficio/pianificazione.js", "ufficio.html"],
   ["js/ufficio/impostazioni.js", "ufficio.html"],
+  ["js/stampa.js", "stampa.html"],
 ];
 
 for (const [js, html] of COPPIE) {
