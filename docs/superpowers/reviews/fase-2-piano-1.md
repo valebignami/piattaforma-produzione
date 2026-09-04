@@ -97,8 +97,8 @@ Il **"nessuna migrazione di schema"** è quindi confermato: la sola scrittura è
    e le note: il rapporto lo deve dire con queste parole.
 
 2. **Valori di processo dentro un documento tracciato nel repo pubblico** — `fase-2.md` §2.2
-   righe 89-105 (esempio `Velocità linea: 3,7 m/min`, elenco delle tolleranze `33-39`, `46-60`,
-   `50-62`, `52-68`, `min 88`, `min 92`, `NEUTRO 20 °C`), §2.1 riga 67 (testo di un avviso), e
+   righe 89-105 (l'esempio della velocità di linea con il valore vero, l'elenco per esteso delle
+   sette tolleranze e la temperatura del NEUTRO), §2.1 riga 67 (testo di un avviso), e
    la lista bianca delle tolleranze che `tools/importa_schede.py` conterrà (§2.2 riga 104).
    `docs/superpowers/specs/fase-1.md` è tracciato, quindi anche `fase-2.md` lo sarà. Le tre
    voci gitignorate di `CLAUDE.md` sono rispettate alla lettera, ma la ragione della regola
@@ -168,7 +168,8 @@ Il **"nessuna migrazione di schema"** è quindi confermato: la sola scrittura è
     codice ha il valore atteso.
 
 13. **`fissaggio_temp_max` null e vista degli scostamenti** — §11.2. Lettura fedele del Word
-    ("min 92" è un minimo) e giusta la scelta di non toccare la vista. Va nello STATO come
+    (la cella dice "min" e un numero: è un minimo, non un intervallo) e giusta la scelta di non
+    toccare la vista. Va nello STATO come
     punto aperto **con la frase esatta** per la Fase 3: "temperatura di fissaggio: solo minimo;
     la vista e `fuoriRange` devono trattare `max` null come 'nessun limite superiore', in
     coerenza (test di coerenza JS↔DB)".
