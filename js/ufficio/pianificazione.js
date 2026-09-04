@@ -4,7 +4,7 @@
 // "Già lavorata" è la definizione dello spec §2.3: una lavorazione non annullata che punta la riga.
 // ============================================================
 import { byId, sb, salva } from "../db.js";
-import { lunediDellaSettimana, settimanaSpostata, schedeCompatibili, formattaNumero, dataLungaItaliana } from "../comune.js";
+import { lunediDellaSettimana, settimanaSpostata, schedeCompatibili, etichettaScheda, formattaNumero, dataLungaItaliana } from "../comune.js";
 
 // pianificazione ha unique (settimana, posizione): due righe non possono occupare lo stesso posto.
 const DOPPIONE = { 23505: "Questa posizione nella settimana è già occupata: ricarico il programma." };
@@ -146,7 +146,9 @@ function campoScheda(p, g, lavorata) {
   for (const s of compatibili) {
     const o = document.createElement("option");
     o.value = s.id;
-    o.textContent = `${s.lavorazione} (${formattaNumero(s.micron)} my)`;
+    // etichettaScheda e non il solo nome: con le 51 schede caricate dalla Fase 2 dodici si
+    // chiamano allo stesso modo, e con "mostra tutte" non si distinguerebbero.
+    o.textContent = etichettaScheda(s);
     sel.append(o);
   }
   // Una scheda già scelta ma non più compatibile resterebbe invisibile: la si aggiunge in coda.
@@ -154,7 +156,7 @@ function campoScheda(p, g, lavorata) {
     const s = schede.find((x) => x.id === p.scheda_lavorazione_id);
     const o = document.createElement("option");
     o.value = p.scheda_lavorazione_id;
-    o.textContent = s ? `${s.lavorazione} (fuori misura)` : "scheda non più disponibile";
+    o.textContent = s ? `${etichettaScheda(s)} — fuori misura` : "scheda non più disponibile";
     sel.append(o);
   }
   sel.value = p.scheda_lavorazione_id ?? "";

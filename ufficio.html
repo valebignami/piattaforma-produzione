@@ -39,6 +39,7 @@
       <nav class="tab">
         <button id="uff-tab-magazzino" type="button" class="tab-voce" aria-selected="true">Magazzino grezzi</button>
         <button id="uff-tab-pianificazione" type="button" class="tab-voce" aria-selected="false">Pianificazione</button>
+        <button id="uff-tab-live" type="button" class="tab-voce" aria-selected="false">Live</button>
         <button id="uff-tab-impostazioni" type="button" class="tab-voce" aria-selected="false">Impostazioni</button>
       </nav>
       <label class="interruttore" for="uff-collaudo">
@@ -166,6 +167,17 @@
           <div id="pian-sequenza"></div>
         </div>
       </div>
+    </section>
+
+    <!-- ---------- Live ---------- -->
+    <section id="uff-pan-live" class="pannello" hidden>
+      <div id="live-riquadro" class="riquadro-linea">
+        <h2 id="live-riquadro-titolo">Linea 1500</h2>
+        <table class="dati-linea"><tbody id="live-riquadro-corpo"></tbody></table>
+      </div>
+      <p id="live-servizio" class="esito"></p>
+      <p class="vuoto">Controlli, eventi, fermi e "Ultime chiusure" arrivano con le fasi
+         successive: qui per ora c'è che cosa sta girando in linea, aggiornato da solo.</p>
     </section>
 
     <!-- ---------- Impostazioni ---------- -->
