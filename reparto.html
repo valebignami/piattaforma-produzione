@@ -77,6 +77,7 @@
           <button id="rep-controllo" type="button">Controllo</button>
           <button id="rep-evento" type="button">Evento</button>
           <button id="rep-chiudi" type="button" disabled>Chiudi rotolo<span class="prossima">dalla prossima fase</span></button>
+          <button id="rep-fermo" class="fermo" type="button">Fermo</button>
         </div>
         <p><button id="rep-altro" class="secondario" type="button">Altro…</button></p>
         <div id="rep-altro-voci" hidden>
@@ -165,6 +166,17 @@
         <div id="rep-ev-campi"></div>
         <p><button id="rep-ev-salva" class="principale" type="button">Salva</button></p>
       </div>
+    </section>
+
+    <!-- ---------- Ripartenza ---------- -->
+    <section id="rep-sch-ripartenza" class="schermata" hidden>
+      <h2>Ripartenza</h2>
+      <p id="rep-rip-fermo" class="riepilogo"></p>
+      <p id="rep-rip-avviso" class="riquadro-aiuto"></p>
+      <label for="rep-rip-metri">Metri di nastro da scartare</label>
+      <input id="rep-rip-metri" type="number" inputmode="decimal" step="any" min="0">
+      <p><button id="rep-rip-salva" class="principale" type="button">Registra la ripartenza</button></p>
+      <p id="rep-rip-esito" class="esito"></p>
     </section>
 
     <!-- ---------- Annulla avvio ---------- -->

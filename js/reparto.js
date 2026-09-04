@@ -8,6 +8,7 @@ import * as hub from "./reparto/hub.js";
 import * as avvio from "./reparto/avvio.js";
 import * as controllo from "./reparto/controllo.js";
 import * as evento from "./reparto/evento.js";
+import * as ripartenza from "./reparto/ripartenza.js";
 
 const CHIAVE_OPERATORE = "produzione.operatore";   // localStorage: solo l'id, il nome si rilegge
 
@@ -17,6 +18,7 @@ const SCHERMATE = {
   avvio:     { pannello: "rep-sch-avvio",     titolo: "Avvia rotolo", modulo: avvio },
   controllo: { pannello: "rep-sch-controllo", titolo: "Controllo", modulo: controllo },
   evento:    { pannello: "rep-sch-evento",    titolo: "Evento", modulo: evento },
+  ripartenza: { pannello: "rep-sch-ripartenza", titolo: "Ripartenza", modulo: ripartenza },
   annullo:   { pannello: "rep-sch-annullo",   titolo: "Annulla avvio", modulo: null },
 };
 

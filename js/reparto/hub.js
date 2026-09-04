@@ -5,10 +5,15 @@
 // Nessuna regola di stato qui dentro: l'hub mostra, e le regole le fa rispettare la RPC.
 // ============================================================
 import { byId, sb, salva } from "../db.js";
-import { lunediDellaSettimana, formattaNumero, oraItaliana, minutiDa, SOGLIA_CONTROLLO_MIN } from "../comune.js";
+import {
+  lunediDellaSettimana, formattaNumero, oraItaliana, minutiDa, fermoAperto,
+  CAUSE_FERMO, SOGLIA_CONTROLLO_MIN,
+} from "../comune.js";
+import * as evento from "./evento.js";
 
 let contesto = null;
 let inCorso = null;         // la lavorazione aperta, con i dati già letti per il banner
+let fermo = null;           // il fermo aperto, se c'è (spec §2.5: fermo senza ripartenza)
 let messaggioDopo = null;   // il messaggio da mostrare DOPO il ricaricamento dell'hub
 let avviato = false;
 
@@ -43,6 +48,7 @@ export async function mostra(ctx) {
 // ---------- Linea libera: il programma della settimana ----------
 async function disegnaLibera() {
   inCorso = null;
+  fermo = null;
   const contenitore = byId("rep-hub-programma");
   contenitore.textContent = "";
   const settimana = lunediDellaSettimana(new Date());
@@ -100,23 +106,23 @@ export function rigaGrezzo(g, extra = null) {
 
 // ---------- Lavorazione in corso: il banner ----------
 async function disegnaInCorso(lav) {
-  const [grezzo, scheda, operatore, controllo] = await Promise.all([
+  const [grezzo, scheda, operatore, controllo, eventi] = await Promise.all([
     sb.from("rotoli_grezzi_reparto").select("*").eq("id", lav.rotolo_grezzo_id).maybeSingle(),
     sb.from("schede_lavorazione").select("lavorazione, micron").eq("id", lav.scheda_lavorazione_id).maybeSingle(),
     sb.from("operatori").select("nome").eq("id", lav.operatore_avvio_id).maybeSingle(),
     sb.from("controlli").select("rilevato_il, contametri").eq("lavorazione_id", lav.id)
       .order("rilevato_il", { ascending: false }).limit(1).maybeSingle(),
+    sb.from("eventi").select("*").eq("lavorazione_id", lav.id).order("avvenuto_il"),
   ]);
-  if (grezzo.error || scheda.error || operatore.error || controllo.error) {
+  if (grezzo.error || scheda.error || operatore.error || controllo.error || eventi.error) {
     return esito("Non riesco a leggere la lavorazione in corso. Riprova.", "errore");
   }
   inCorso = { lav, grezzo: grezzo.data, scheda: scheda.data };
+  fermo = fermoAperto(eventi.data);
 
-  byId("rep-banner-titolo").textContent =
-    `${grezzo.data?.n_prog ?? "rotolo"} · ${scheda.data?.lavorazione ?? "scheda"}`;
+  const rotolo = `${grezzo.data?.n_prog ?? "rotolo"} · ${scheda.data?.lavorazione ?? "scheda"}`;
 
-  // Minuti dall'ultimo controllo; senza controlli si contano dall'avvio: in questa fase è la
-  // regola, perché i controlli arrivano con la Fase 3.
+  // Minuti dall'ultimo controllo; senza controlli si contano dall'avvio.
   const minuti = minutiDa(controllo.data?.rilevato_il ?? lav.avviata_il);
   const pezzi = [`avviato ${oraItaliana(lav.avviata_il)} da ${operatore.data?.nome ?? "operatore"}`];
   pezzi.push(controllo.data ? `ultimo controllo ${formattaNumero(minuti)} min fa` : "nessun controllo");
@@ -124,8 +130,22 @@ async function disegnaInCorso(lav) {
   if (controllo.data?.contametri != null) {
     pezzi.push(`${formattaNumero(controllo.data.contametri - (lav.contametri_inizio ?? 0))} m`);
   }
+
+  // Il rosso del FERMO vince su quello del controllo scaduto: la linea ferma è la cosa più
+  // importante da vedere, e si distingue perché il titolo comincia con "FERMO".
+  if (fermo) {
+    const da = minutiDa(fermo.avvenuto_il);
+    byId("rep-banner-titolo").textContent =
+      `FERMO da ${da != null ? formattaNumero(da) : "?"} min · ${CAUSE_FERMO[fermo.causa_fermo] ?? "causa non indicata"}`;
+    pezzi.unshift(rotolo);
+  } else {
+    byId("rep-banner-titolo").textContent = rotolo;
+  }
   byId("rep-banner-dettaglio").textContent = pezzi.join(" · ");
-  byId("rep-banner").className = "banner" + (minuti != null && minuti > SOGLIA_CONTROLLO_MIN ? " scaduto" : "");
+  byId("rep-banner").className = "banner"
+    + (fermo ? " fermo" : (minuti != null && minuti > SOGLIA_CONTROLLO_MIN ? " scaduto" : ""));
+
+  byId("rep-fermo").textContent = fermo ? "Ripartenza" : "Fermo";
   esito("");
 }
 
@@ -174,6 +194,12 @@ function collega() {
   byId("rep-hub-avvia").addEventListener("click", () => contesto.vaiA("avvio"));
   byId("rep-controllo").addEventListener("click", () => contesto.vaiA("controllo", "hub"));
   byId("rep-evento").addEventListener("click", () => contesto.vaiA("evento", "hub"));
+  // Un tasto solo: fermo se la linea va, ripartenza se è ferma (spec §3.3).
+  byId("rep-fermo").addEventListener("click", () => {
+    if (fermo) return contesto.vaiA("ripartenza", "hub");
+    evento.preparaTipo("fermo");
+    contesto.vaiA("evento", "hub");
+  });
   byId("rep-altro").addEventListener("click", () => {
     byId("rep-altro-voci").hidden = !byId("rep-altro-voci").hidden;
   });

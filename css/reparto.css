@@ -55,7 +55,9 @@ button.principale { min-height: 72px; font-size: 22px; padding: 0 32px; width: 1
 .banner-dettaglio { font-size: 18px; color: var(--grigio); margin: 6px 0 0; }
 .banner.scaduto .banner-dettaglio { color: var(--rosso); }
 
-.azioni { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+/* I tasti dell'hub sono quattro (cinque per il capoturno): si dispongono da soli,
+   restando sopra i 56 px anche a 1024 px di larghezza. */
+.azioni { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 20px; }
 .azioni button { min-height: 88px; font-size: 20px; display: flex; flex-direction: column; gap: 4px; align-items: center; justify-content: center; }
 .prossima { font-size: 18px; font-weight: 400; opacity: .9; }   /* spec §3.1: mai sotto i 18 px */
 
@@ -87,3 +89,9 @@ table.parametri th { color: var(--grigio); font-weight: 500; width: 45%; }
 }
 .riquadro-aiuto p { font-size: 18px; margin: 6px 0; }
 .riquadro-aiuto p:empty { display: none; }
+
+/* ---------- Fermo e ripartenza (Fase 3) ---------- */
+button.fermo { background: var(--rosso); }
+.banner.fermo { border-color: var(--rosso); background: #fee2e2; }
+.banner.fermo .banner-titolo { color: var(--rosso); }
+.banner.fermo .banner-dettaglio { color: var(--testo); }
