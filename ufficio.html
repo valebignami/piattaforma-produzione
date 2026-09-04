@@ -176,8 +176,20 @@
         <table class="dati-linea"><tbody id="live-riquadro-corpo"></tbody></table>
       </div>
       <p id="live-servizio" class="esito"></p>
-      <p class="vuoto">Controlli, eventi, fermi e "Ultime chiusure" arrivano con le fasi
-         successive: qui per ora c'è che cosa sta girando in linea, aggiornato da solo.</p>
+
+      <div id="live-fermo" class="banner-fermo" hidden></div>
+
+      <div id="live-ultimo" hidden>
+        <h2>Ultimo controllo</h2>
+        <p id="live-ultimo-vuoto" class="vuoto" hidden>Su questo rotolo non c'è ancora nessun controllo.</p>
+        <table class="dati-linea"><tbody id="live-ultimo-corpo"></tbody></table>
+      </div>
+
+      <h2>Oggi in linea</h2>
+      <p id="live-nastro-vuoto" class="vuoto" hidden>Oggi non è ancora successo niente.</p>
+      <div id="live-nastro" class="nastro"></div>
+
+      <p class="vuoto">"Ultime chiusure", con le schede da stampare, arriva con la fase successiva.</p>
     </section>
 
     <!-- ---------- Impostazioni ---------- -->
