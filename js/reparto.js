@@ -6,6 +6,7 @@
 import { byId, sb, ruoloCorrente, login, logout } from "./db.js";
 import * as hub from "./reparto/hub.js";
 import * as avvio from "./reparto/avvio.js";
+import * as controllo from "./reparto/controllo.js";
 
 const CHIAVE_OPERATORE = "produzione.operatore";   // localStorage: solo l'id, il nome si rilegge
 
@@ -13,6 +14,7 @@ const SCHERMATE = {
   operatore: { pannello: "rep-sch-operatore", titolo: "Chi sei?", modulo: null },
   hub:       { pannello: "rep-sch-hub",       titolo: "Linea 1500", modulo: hub },
   avvio:     { pannello: "rep-sch-avvio",     titolo: "Avvia rotolo", modulo: avvio },
+  controllo: { pannello: "rep-sch-controllo", titolo: "Controllo", modulo: controllo },
   annullo:   { pannello: "rep-sch-annullo",   titolo: "Annulla avvio", modulo: null },
 };
 

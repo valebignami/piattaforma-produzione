@@ -74,7 +74,7 @@
           <p id="rep-banner-dettaglio" class="banner-dettaglio"></p>
         </div>
         <div class="azioni">
-          <button id="rep-controllo" type="button" disabled>Controllo<span class="prossima">dalla prossima fase</span></button>
+          <button id="rep-controllo" type="button">Controllo</button>
           <button id="rep-evento" type="button" disabled>Evento<span class="prossima">dalla prossima fase</span></button>
           <button id="rep-chiudi" type="button" disabled>Chiudi rotolo<span class="prossima">dalla prossima fase</span></button>
         </div>
@@ -128,6 +128,19 @@
         <input id="rep-avvio-contametri" type="number" inputmode="decimal" step="any" min="0" value="0">
         <p><button id="rep-avvio-conferma" class="principale" type="button">Avvia</button></p>
       </div>
+    </section>
+
+    <!-- ---------- Controllo ---------- -->
+    <section id="rep-sch-controllo" class="schermata" hidden>
+      <p id="rep-ctl-riepilogo" class="riepilogo"></p>
+      <h2>Momento</h2>
+      <div id="rep-ctl-momenti" class="griglia-bottoni"></div>
+      <!-- i campi li disegna controllo.js da CAMPI_CONTROLLO: una fonte sola per tablet e Live -->
+      <div id="rep-ctl-campi"></div>
+      <label for="rep-ctl-note">Note</label>
+      <input id="rep-ctl-note" type="text">
+      <p><button id="rep-ctl-salva" class="principale" type="button">Salva il controllo</button></p>
+      <p id="rep-ctl-esito" class="esito"></p>
     </section>
 
     <!-- ---------- Annulla avvio ---------- -->

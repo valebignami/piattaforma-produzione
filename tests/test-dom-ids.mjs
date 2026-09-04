@@ -14,6 +14,7 @@ const COPPIE = [
   ["js/reparto.js", "reparto.html"],
   ["js/reparto/hub.js", "reparto.html"],
   ["js/reparto/avvio.js", "reparto.html"],
+  ["js/reparto/controllo.js", "reparto.html"],
 ];
 
 for (const [js, html] of COPPIE) {
