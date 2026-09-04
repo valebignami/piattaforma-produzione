@@ -10,6 +10,11 @@ import { METRI_SCARTO_RIPARTENZA, CAUSE_FERMO, fermoAperto, minutiDa, oraItalian
 
 const AVVISO = "Il tratto dalla sgrassatura all'uscita dell'ossido va scartato.";
 
+// L'indice unico eventi_un_fermo_una_ripartenza dà 23505, che db.js tradurrebbe con il numero
+// progressivo dei rotoli: qui vuol dire un'altra cosa (spec §5.5, il messaggio lo scrive la
+// schermata che conosce il contesto).
+const GIA_RIPARTITA = { 23505: "Questo fermo è già stato chiuso da una ripartenza: torna indietro e ricarica." };
+
 let contesto = null;
 let lav = null;
 let fermo = null;
@@ -63,7 +68,7 @@ async function conferma() {
     tipo: "ripartenza",
     fermo_id: fermo.id,
     metri_scarto: metri === "" ? null : Number(metri),
-  }), rete(contesto));
+  }), { ...rete(contesto), messaggi: GIA_RIPARTITA });
 
   byId("rep-rip-salva").disabled = false;
   if (!r.ok) return esito(r.errore, "errore");

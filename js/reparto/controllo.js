@@ -50,18 +50,21 @@ export async function mostra(ctx) {
   if (!aperta.data) return esito("Nessuna lavorazione aperta sulla linea.", "errore");
   lav = aperta.data;
 
-  const [sch, ultimi] = await Promise.all([
+  // In correzione il "precedente" è quello che viene prima PER ORA del controllo corretto, non
+  // il più recente del rotolo: correggendo un controllo vecchio, i suggerimenti in grigio
+  // arriverebbero da uno fatto dopo.
+  const prima = sb.from("controlli").select("*").eq("lavorazione_id", lav.id)
+    .order("rilevato_il", { ascending: false }).limit(1);
+  const [sch, quanti, ultimi] = await Promise.all([
     sb.from("schede_lavorazione").select("*").eq("id", lav.scheda_lavorazione_id).maybeSingle(),
-    sb.from("controlli").select("*").eq("lavorazione_id", lav.id)
-      .order("rilevato_il", { ascending: false }).limit(2),
+    sb.from("controlli").select("id", { count: "exact", head: true }).eq("lavorazione_id", lav.id),
+    daCorreggere ? prima.lt("rilevato_il", daCorreggere.rilevato_il) : prima,
   ]);
-  if (sch.error || ultimi.error) return esito("Non riesco a leggere la scheda o i controlli. Riprova.", "errore");
+  if (sch.error || quanti.error || ultimi.error) {
+    return esito("Non riesco a leggere la scheda o i controlli. Riprova.", "errore");
+  }
   scheda = sch.data;
-
-  // In correzione il "precedente" è quello prima di lui, non lui stesso.
-  precedente = daCorreggere
-    ? (ultimi.data.find((c) => c.id !== daCorreggere.id) ?? null)
-    : (ultimi.data[0] ?? null);
+  precedente = ultimi.data[0] ?? null;
 
   byId("rep-ctl-riepilogo").textContent = daCorreggere
     ? `Correzione di un controllo già salvato · ${etichettaScheda(scheda)}`
@@ -69,7 +72,7 @@ export async function mostra(ctx) {
   byId("rep-ctl-salva").textContent = daCorreggere ? "Salva la correzione" : "Salva il controllo";
   byId("rep-ctl-salva").disabled = false;
 
-  momento = daCorreggere ? daCorreggere.momento : momentoProposto(ultimi.data.length);
+  momento = daCorreggere ? daCorreggere.momento : momentoProposto(quanti.count ?? 0);
   disegnaMomenti();
   riempiCampi();
   aggiornaColori();
