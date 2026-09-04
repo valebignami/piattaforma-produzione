@@ -173,6 +173,7 @@ function collega() {
   avviato = true;
   byId("rep-hub-avvia").addEventListener("click", () => contesto.vaiA("avvio"));
   byId("rep-controllo").addEventListener("click", () => contesto.vaiA("controllo", "hub"));
+  byId("rep-evento").addEventListener("click", () => contesto.vaiA("evento", "hub"));
   byId("rep-altro").addEventListener("click", () => {
     byId("rep-altro-voci").hidden = !byId("rep-altro-voci").hidden;
   });

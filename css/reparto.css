@@ -77,3 +77,13 @@ table.parametri th { color: var(--grigio); font-weight: 500; width: 45%; }
 #rep-ctl-campi input.fuori { border: 3px solid var(--rosso); background: #fef2f2; }
 /* La ragione del rosso, in parole. Mai sotto i 18 px (spec §3.1). */
 .ragione { color: var(--rosso); font-size: 18px; margin: 4px 0 0; max-width: 520px; }
+
+/* ---------- Evento (Fase 3) ---------- */
+.elenco-righe button.scelto { border-color: var(--blu); border-width: 3px; background: #eff6ff; }
+/* Causa probabile e azione del catalogo: si leggono, non si salvano. */
+.riquadro-aiuto {
+  background: #fff; border: 2px solid #cbd5e1; border-left: 8px solid var(--blu);
+  border-radius: 12px; padding: 12px 18px; margin: 16px 0; max-width: 760px;
+}
+.riquadro-aiuto p { font-size: 18px; margin: 6px 0; }
+.riquadro-aiuto p:empty { display: none; }

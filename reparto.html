@@ -75,7 +75,7 @@
         </div>
         <div class="azioni">
           <button id="rep-controllo" type="button">Controllo</button>
-          <button id="rep-evento" type="button" disabled>Evento<span class="prossima">dalla prossima fase</span></button>
+          <button id="rep-evento" type="button">Evento</button>
           <button id="rep-chiudi" type="button" disabled>Chiudi rotolo<span class="prossima">dalla prossima fase</span></button>
         </div>
         <p><button id="rep-altro" class="secondario" type="button">Altro…</button></p>
@@ -141,6 +141,30 @@
       <input id="rep-ctl-note" type="text">
       <p><button id="rep-ctl-salva" class="principale" type="button">Salva il controllo</button></p>
       <p id="rep-ctl-esito" class="esito"></p>
+    </section>
+
+    <!-- ---------- Evento ---------- -->
+    <section id="rep-sch-evento" class="schermata" hidden>
+      <p id="rep-ev-esito" class="esito"></p>
+
+      <!-- 1. quale evento -->
+      <div id="rep-ev-1" hidden>
+        <h2>Che cosa è successo</h2>
+        <div id="rep-ev-tipi" class="griglia-bottoni"></div>
+      </div>
+
+      <!-- 2. il dettaglio -->
+      <div id="rep-ev-2" hidden>
+        <h2 id="rep-ev-titolo"></h2>
+        <div id="rep-ev-scelte" class="elenco-righe"></div>
+        <!-- causa e azione arrivano dal catalogo dei difetti: si leggono, non si salvano -->
+        <div id="rep-ev-difetto-info" class="riquadro-aiuto" hidden>
+          <p id="rep-ev-difetto-causa"></p>
+          <p id="rep-ev-difetto-azione"></p>
+        </div>
+        <div id="rep-ev-campi"></div>
+        <p><button id="rep-ev-salva" class="principale" type="button">Salva</button></p>
+      </div>
     </section>
 
     <!-- ---------- Annulla avvio ---------- -->
