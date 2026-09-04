@@ -5,6 +5,7 @@
 import { byId, sb, ruoloCorrente, login, logout } from "./db.js";
 import * as magazzino from "./ufficio/magazzino.js";
 import * as pianificazione from "./ufficio/pianificazione.js";
+import * as live from "./ufficio/live.js";
 import * as impostazioni from "./ufficio/impostazioni.js";
 
 // L'interruttore dei rotoli di collaudo vale per l'elenco del magazzino e per i grezzi
@@ -15,6 +16,7 @@ const ctx = { mostraCollaudo: false };
 const TAB = [
   { voce: "uff-tab-magazzino",      pannello: "uff-pan-magazzino",      modulo: magazzino },
   { voce: "uff-tab-pianificazione", pannello: "uff-pan-pianificazione", modulo: pianificazione },
+  { voce: "uff-tab-live",           pannello: "uff-pan-live",           modulo: live },
   { voce: "uff-tab-impostazioni",   pannello: "uff-pan-impostazioni",   modulo: impostazioni },
 ];
 let tabAttivo = TAB[0];

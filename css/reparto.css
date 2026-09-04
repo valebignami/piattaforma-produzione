@@ -1,0 +1,72 @@
+/* Piattaforma Produzione — reparto (tablet, riferimento 1024 × 768).
+   Ergonomia dello spec §3.1: tasti ≥ 56 px, testo ≥ 18 px, elenchi come bottoni (mai <select>),
+   una sola azione principale per schermata, "Indietro" in alto a sinistra.
+   base.css impone già min-height 56px e font-size 18px su input e button: qui non si abbassano,
+   semmai si alzano. */
+
+body.reparto { font-size: 19px; }
+/* base.css scrive `label { font-size: .95rem }`: il rem si misura sulla radice a 16 px, non sul
+   body, quindi sul tablet le etichette resterebbero a 15,2 px. Qui tornano sopra i 18 px. */
+body.reparto label { font-size: 18px; }
+
+/* ---------- Barra in alto ---------- */
+.barra-tablet {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px; background: #fff; border-bottom: 2px solid #e2e8f0;
+  position: sticky; top: 0; z-index: 2;
+}
+.barra-tablet > strong { font-size: 1.15rem; }
+.barra-tablet #rep-stato { margin-left: auto; }
+.barra-tablet button { min-height: 56px; font-size: 18px; padding: 0 18px; }
+.stato-rete { color: var(--grigio); font-size: 18px; min-width: 1px; }
+.stato-rete.ok { color: var(--verde); }
+.stato-rete.attesa { color: var(--rosso); }
+
+/* ---------- Schermate ---------- */
+.schermata { padding: 20px; max-width: 1000px; }
+.schermata h2 { font-size: 1.2rem; margin: 24px 0 10px; }
+.schermata h2:first-child { margin-top: 0; }
+.esito { min-height: 1.4em; color: var(--grigio); font-size: 18px; }
+.esito.ok { color: var(--verde); }
+.esito.errore { color: var(--rosso); }
+.vuoto { color: var(--grigio); font-style: italic; }
+.riepilogo { font-size: 19px; margin: 8px 0 16px; }
+
+button.principale { min-height: 72px; font-size: 22px; padding: 0 32px; width: 100%; max-width: 520px; }
+
+/* ---------- Elenchi come bottoni (mai <select>) ---------- */
+.griglia-bottoni { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.griglia-bottoni button { min-height: 72px; font-size: 20px; width: 100%; }
+
+.elenco-righe { display: flex; flex-direction: column; gap: 12px; }
+.elenco-righe button {
+  min-height: 72px; font-size: 19px; padding: 12px 18px; width: 100%;
+  text-align: left; background: #fff; color: var(--testo); border: 2px solid #cbd5e1;
+}
+.elenco-righe button.primo { border-color: var(--blu); border-width: 3px; }
+.elenco-righe button:disabled { background: #f1f5f9; }
+.elenco-righe .titolo { display: block; font-weight: 600; font-size: 20px; }
+.elenco-righe .dettaglio { display: block; color: var(--grigio); font-size: 18px; margin-top: 4px; }
+
+/* ---------- Hub: banner e azioni ---------- */
+.banner { border: 3px solid var(--verde); border-radius: 12px; padding: 14px 18px; background: #fff; margin-bottom: 20px; }
+.banner.scaduto { border-color: var(--rosso); background: #fef2f2; }
+.banner-titolo { font-size: 22px; font-weight: 600; margin: 0; }
+.banner-dettaglio { font-size: 18px; color: var(--grigio); margin: 6px 0 0; }
+.banner.scaduto .banner-dettaglio { color: var(--rosso); }
+
+.azioni { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+.azioni button { min-height: 88px; font-size: 20px; display: flex; flex-direction: column; gap: 4px; align-items: center; justify-content: center; }
+.prossima { font-size: 18px; font-weight: 400; opacity: .9; }   /* spec §3.1: mai sotto i 18 px */
+
+/* ---------- Avvio ---------- */
+/* Il bersaglio da toccare è tutta l'etichetta, non il quadratino: minimo 56 px (spec §3.1). */
+.interruttore-grande { display: inline-flex; align-items: center; gap: 12px; min-height: 56px; padding: 0 8px; font-size: 19px; margin: 0 0 12px; color: var(--testo); }
+.interruttore-grande input { width: 32px; height: 32px; min-height: 32px; }
+.cerca { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
+.cerca input { flex: 1; }
+.cerca button { min-height: 56px; }
+.schermata input { max-width: 520px; }
+table.parametri { width: 100%; max-width: 620px; border-collapse: collapse; background: #fff; font-size: 18px; margin-bottom: 16px; }
+table.parametri th, table.parametri td { padding: 8px 12px; border-bottom: 1px solid #e2e8f0; text-align: left; }
+table.parametri th { color: var(--grigio); font-weight: 500; width: 45%; }

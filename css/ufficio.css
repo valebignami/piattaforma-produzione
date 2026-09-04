@@ -76,3 +76,15 @@ td .stato.esaurito { background: #e2e8f0; color: #334155; }
 .riga-programma button, .scheda-grezzo button { min-height: 32px; font-size: 13px; padding: 0 10px; }
 .riga-programma .comandi-riga { display: flex; gap: 4px; }
 .avviso-riga { color: var(--rosso); font-size: 13px; margin: 6px 0 0; }
+
+/* ---------- Live (Fase 2): il riquadro della linea ---------- */
+.riquadro-linea {
+  background: #fff; border: 2px solid #cbd5e1; border-left-width: 8px; border-radius: 12px;
+  padding: 14px 20px; max-width: 560px; margin-bottom: 12px;
+}
+.riquadro-linea.libera { border-left-color: var(--grigio); }
+.riquadro-linea.in-corso { border-left-color: var(--verde); }
+.riquadro-linea h2 { margin: 0 0 10px; }
+table.dati-linea { width: 100%; border-collapse: collapse; }
+table.dati-linea th, table.dati-linea td { padding: 5px 0; text-align: left; vertical-align: top; }
+table.dati-linea th { color: var(--grigio); font-weight: 500; width: 42%; }

@@ -44,6 +44,9 @@
 | Capoturno | distinzione del solo front-end |
 | Rotoli di collaudo | dieci, `COLLAUDO-0001…0010`, nascosti in ufficio per default |
 | **Fonte delle schede di lavorazione** (2026-09-04) | **`Desktop/Schede di lavorazione/Schede di lavorazione Impianto 1500.docx`** (28 luglio, 16:52), **non** `Schede Impianto 1500.xlsx` (27 luglio). Il Word è la revisione più recente: l'app `schede-1500-web` è stata rigenerata da lì dieci minuti dopo. **Scostamento dichiarato dallo spec §2.1**, che indicava l'Excel; vale solo per il file di partenza, non per le regole di conversione |
+| **Lega nelle schede di lavorazione** (2026-09-04) | **casella vuota.** Il Word non riporta la lega; il vecchio Excel sì, su tutte e 51 le righe. Il committente ha scelto di non attingere a due fonti: vale "il Word è l'unica fonte". Per riaverla basta rimetterla nel Word e rifare il caricamento |
+| **Operatori del pilota** (2026-09-04) | **Marco** e **Davide** (spec §7). Vanno inseriti in Impostazioni con nome e cognome completi prima del pilota |
+| **Data di stop carta** (2026-09-04) | **non deciso.** Il committente la fisserà dopo la Fase 4 e dopo la mezza giornata di addestramento. Il pilota non parte finché non c'è |
 | **App `schede-1500` esistente** (2026-09-04) | resta com'è: è un visualizzatore con i dati cifrati in pagina (blocco AES di 43.000 caratteri, nessun testo in chiaro), quindi non è interrogabile da un programma e non può sostituire le schede in tabella. La sua sostituzione è il sotto-progetto 3, non questa fetta |
 
 ## §3 Le fasi
@@ -110,8 +113,9 @@ stampa dal tablet; `n_prog` proposto ignora i `COLLAUDO-*`.
 4. **Avvia rotolo** in tre schermate (spec §3.4) → `avvia_lavorazione`.
 5. Tab **Live** in `ufficio.html`, sola lettura, realtime: riquadro linea con rotolo, scheda,
    operatore, avvio.
-**Risultato verificabile:** le ~60 schede sono in tabella e tre a campione coincidono con
-l'Excel; l'operatore avvia e annulla un rotolo di collaudo; l'ufficio lo vede in Live entro
+**Risultato verificabile:** le **51** schede sono in tabella (il piano diceva "~60": il Word e
+l'Excel ne contengono 51, contate il 2026-09-04) e tre a campione coincidono con l'Excel sui
+parametri di processo; l'operatore avvia e annulla un rotolo di collaudo; l'ufficio lo vede in Live entro
 un secondo.
 **Guardie:** il tablet non interroga mai `rotoli_grezzi`; nessuna logica di stato nel
 front-end; niente `<select>` per elenchi ≤ 8 voci.
