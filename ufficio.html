@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ufficio — Piattaforma Produzione</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/ufficio.css">
+  <!-- stessa libreria e stesso integrity di index.html (versione pinnata) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.6/dist/umd/supabase.js"
+          integrity="sha384-SR76iDF5vfiuFuYEigF/LOTQIXTU5SrR3Ij29NELtBswNOxcSLM6iMr8OVRzUycq" crossorigin="anonymous"></script>
+</head>
+<body class="ufficio">
+
+  <!-- ---------- Login ---------- -->
+  <main id="uff-login" hidden>
+    <h1>Ufficio</h1>
+    <form id="uff-form-login">
+      <label for="uff-email">Email</label>
+      <input id="uff-email" type="email" autocomplete="username" required>
+      <label for="uff-password">Password</label>
+      <input id="uff-password" type="password" autocomplete="current-password" required>
+      <p><button id="uff-entra" type="submit">Entra</button></p>
+      <p id="uff-messaggio" class="messaggio"></p>
+    </form>
+  </main>
+
+  <!-- ---------- Ruolo sbagliato ---------- -->
+  <main id="uff-negato" hidden>
+    <h1>Ufficio</h1>
+    <p class="messaggio">Questa pagina è riservata all'ufficio.</p>
+    <p><button id="uff-negato-esci" class="secondario" type="button">Esci</button></p>
+  </main>
+
+  <!-- ---------- Applicazione ---------- -->
+  <div id="uff-app" hidden>
+    <header class="barra">
+      <strong>Piattaforma Produzione — Ufficio</strong>
+      <nav class="tab">
+        <button id="uff-tab-magazzino" type="button" class="tab-voce" aria-selected="true">Magazzino grezzi</button>
+        <button id="uff-tab-pianificazione" type="button" class="tab-voce" aria-selected="false">Pianificazione</button>
+        <button id="uff-tab-impostazioni" type="button" class="tab-voce" aria-selected="false">Impostazioni</button>
+      </nav>
+      <label class="interruttore" for="uff-collaudo">
+        <input id="uff-collaudo" type="checkbox"> Mostra rotoli di collaudo
+      </label>
+      <button id="uff-esci" class="secondario piccolo" type="button">Esci</button>
+    </header>
+
+    <!-- ---------- Magazzino grezzi ---------- -->
+    <section id="uff-pan-magazzino" class="pannello">
+      <div class="comandi">
+        <label for="mag-stato">Stato</label>
+        <select id="mag-stato">
+          <option value="attivi" selected>A magazzino e in linea</option>
+          <option value="esauriti">Esauriti</option>
+          <option value="tutti">Tutti</option>
+        </select>
+        <button id="mag-nuovo" type="button">Nuovo rotolo</button>
+        <span id="mag-esito" class="esito"></span>
+      </div>
+
+      <form id="mag-form" hidden>
+        <h2 id="mag-form-titolo">Nuovo rotolo</h2>
+        <p id="mag-sola-lettura" class="messaggio" hidden>
+          Il rotolo non è a magazzino (è in lavorazione o esaurito): si modifica solo quando è a magazzino.
+        </p>
+        <div class="griglia">
+          <div id="mag-riga-lettera">
+            <label for="mag-lettera">Lettera</label>
+            <select id="mag-lettera"></select>
+          </div>
+          <div>
+            <label for="mag-n-prog">N. progressivo *</label>
+            <input id="mag-n-prog" type="text" required>
+          </div>
+          <div>
+            <label for="mag-fornitore">Fornitore</label>
+            <input id="mag-fornitore" type="text" list="mag-fornitori">
+            <datalist id="mag-fornitori"></datalist>
+          </div>
+          <div>
+            <label for="mag-rif-bolla">Riferimento bolla</label>
+            <input id="mag-rif-bolla" type="text">
+          </div>
+          <div>
+            <label for="mag-cliente">Cliente</label>
+            <input id="mag-cliente" type="text" list="mag-clienti">
+            <datalist id="mag-clienti"></datalist>
+          </div>
+          <div>
+            <label for="mag-lega">Lega</label>
+            <input id="mag-lega" type="text">
+          </div>
+          <div>
+            <label for="mag-finitura">Finitura</label>
+            <input id="mag-finitura" type="text">
+          </div>
+          <div>
+            <label for="mag-spessore">Spessore (mm) *</label>
+            <input id="mag-spessore" type="number" step="any" min="0" required>
+          </div>
+          <div>
+            <label for="mag-larghezza">Larghezza (mm) *</label>
+            <input id="mag-larghezza" type="number" step="any" min="0" required>
+          </div>
+          <div>
+            <label for="mag-peso-bolla">Peso di bolla (kg) *</label>
+            <input id="mag-peso-bolla" type="number" step="any" min="0" required>
+          </div>
+          <div id="mag-riga-kg-residui" hidden>
+            <label for="mag-kg-residui">Kg residui (vuoto = mai lavorato)</label>
+            <input id="mag-kg-residui" type="number" step="any" min="0">
+          </div>
+          <div>
+            <label for="mag-data-arrivo">Data di arrivo</label>
+            <input id="mag-data-arrivo" type="date">
+          </div>
+          <div>
+            <label for="mag-posizione">Posizione</label>
+            <input id="mag-posizione" type="text">
+          </div>
+          <div class="larga">
+            <label for="mag-note">Note</label>
+            <input id="mag-note" type="text">
+          </div>
+        </div>
+        <p>
+          <button id="mag-salva" type="submit">Salva</button>
+          <button id="mag-annulla" class="secondario" type="button">Annulla</button>
+        </p>
+      </form>
+
+      <p id="mag-vuoto" class="vuoto" hidden>Nessun rotolo con questo filtro.</p>
+      <table class="elenco">
+        <thead>
+          <tr>
+            <th>N. prog.</th><th>Stato</th><th>Fornitore</th><th>Cliente</th><th>Lega</th><th>Finitura</th>
+            <th class="num">Spess.</th><th class="num">Largh.</th><th class="num">Bolla kg</th>
+            <th class="num">Residui kg</th><th class="num">Metri</th><th>Posizione</th><th>Arrivo</th>
+            <th>Note</th><th>Modificato</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="mag-tabella"></tbody>
+      </table>
+    </section>
+
+    <!-- ---------- Pianificazione ---------- -->
+    <section id="uff-pan-pianificazione" class="pannello" hidden>
+      <div class="comandi">
+        <button id="pian-prec" class="secondario" type="button">← Settimana precedente</button>
+        <strong id="pian-settimana"></strong>
+        <button id="pian-succ" class="secondario" type="button">Settimana successiva →</button>
+        <label class="interruttore" for="pian-tutte">
+          <input id="pian-tutte" type="checkbox"> Mostra tutte le schede
+        </label>
+        <span id="pian-esito" class="esito"></span>
+      </div>
+      <div class="due-colonne">
+        <div>
+          <h2>Grezzi disponibili</h2>
+          <div id="pian-disponibili"></div>
+        </div>
+        <div>
+          <h2>Programma della settimana</h2>
+          <div id="pian-sequenza"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- Impostazioni ---------- -->
+    <section id="uff-pan-impostazioni" class="pannello" hidden>
+      <h2>Operatori</h2>
+      <form id="imp-nuovo">
+        <label for="imp-nome">Nome del nuovo operatore</label>
+        <input id="imp-nome" type="text" required>
+        <label for="imp-ruolo">Ruolo</label>
+        <select id="imp-ruolo">
+          <option value="operatore" selected>Operatore</option>
+          <option value="capoturno">Capoturno</option>
+        </select>
+        <p><button id="imp-aggiungi" type="submit">Aggiungi operatore</button></p>
+      </form>
+      <table class="elenco">
+        <thead><tr><th>Nome</th><th>Ruolo</th><th>Attivo</th></tr></thead>
+        <tbody id="imp-operatori"></tbody>
+      </table>
+
+      <h2>Backup</h2>
+      <p>Scarica un file per ogni tabella del database. Il browser chiederà una volta di consentire
+         più download: rispondi <strong>Consenti</strong>.</p>
+      <p><button id="imp-esporta" type="button">Esporta tutto</button></p>
+      <p id="imp-esito" class="esito"></p>
+    </section>
+  </div>
+
+  <script type="module" src="js/ufficio.js"></script>
+</body>
+</html>
